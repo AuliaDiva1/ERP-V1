@@ -11,22 +11,22 @@ import AppTopbar from './AppTopbar';
 import AppConfig from './AppConfig';
 import { LayoutContext } from './context/layoutcontext';
 import { PrimeReactContext } from 'primereact/api';
-import { ChildContainerProps, LayoutState, AppTopbarRef } from '@/types';
+// Dihapus: impor tipe
 import { usePathname, useSearchParams } from 'next/navigation';
 
-const Layout = ({ children }: ChildContainerProps) => {
+const Layout = ({ children }) => {
     const { layoutConfig, layoutState, setLayoutState } = useContext(LayoutContext);
     const { setRipple } = useContext(PrimeReactContext);
-    const topbarRef = useRef<AppTopbarRef>(null);
-    const sidebarRef = useRef<HTMLDivElement>(null);
+    const topbarRef = useRef(null);
+    const sidebarRef = useRef(null);
     const [bindMenuOutsideClickListener, unbindMenuOutsideClickListener] = useEventListener({
         type: 'click',
         listener: (event) => {
             const isOutsideClicked = !(
-                sidebarRef.current?.isSameNode(event.target as Node) ||
-                sidebarRef.current?.contains(event.target as Node) ||
-                topbarRef.current?.menubutton?.isSameNode(event.target as Node) ||
-                topbarRef.current?.menubutton?.contains(event.target as Node)
+                sidebarRef.current?.isSameNode(event.target) ||
+                sidebarRef.current?.contains(event.target) ||
+                topbarRef.current?.menubutton?.isSameNode(event.target) ||
+                topbarRef.current?.menubutton?.contains(event.target)
             );
 
             if (isOutsideClicked) {
@@ -46,10 +46,10 @@ const Layout = ({ children }: ChildContainerProps) => {
         type: 'click',
         listener: (event) => {
             const isOutsideClicked = !(
-                topbarRef.current?.topbarmenu?.isSameNode(event.target as Node) ||
-                topbarRef.current?.topbarmenu?.contains(event.target as Node) ||
-                topbarRef.current?.topbarmenubutton?.isSameNode(event.target as Node) ||
-                topbarRef.current?.topbarmenubutton?.contains(event.target as Node)
+                topbarRef.current?.topbarmenu?.isSameNode(event.target) ||
+                topbarRef.current?.topbarmenu?.contains(event.target) ||
+                topbarRef.current?.topbarmenubutton?.isSameNode(event.target) ||
+                topbarRef.current?.topbarmenubutton?.contains(event.target)
             );
 
             if (isOutsideClicked) {
@@ -59,7 +59,7 @@ const Layout = ({ children }: ChildContainerProps) => {
     });
 
     const hideMenu = () => {
-        setLayoutState((prevLayoutState: LayoutState) => ({
+        setLayoutState((prevLayoutState) => ({
             ...prevLayoutState,
             overlayMenuActive: false,
             staticMenuMobileActive: false,
@@ -70,14 +70,14 @@ const Layout = ({ children }: ChildContainerProps) => {
     };
 
     const hideProfileMenu = () => {
-        setLayoutState((prevLayoutState: LayoutState) => ({
+        setLayoutState((prevLayoutState) => ({
             ...prevLayoutState,
             profileSidebarVisible: false
         }));
         unbindProfileMenuOutsideClickListener();
     };
 
-    const blockBodyScroll = (): void => {
+    const blockBodyScroll = () => {
         if (document.body.classList) {
             document.body.classList.add('blocked-scroll');
         } else {
@@ -85,7 +85,7 @@ const Layout = ({ children }: ChildContainerProps) => {
         }
     };
 
-    const unblockBodyScroll = (): void => {
+    const unblockBodyScroll = () => {
         if (document.body.classList) {
             document.body.classList.remove('blocked-scroll');
         } else {

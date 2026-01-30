@@ -2,52 +2,51 @@
 
 import { PrimeReactContext } from 'primereact/api';
 import { Button } from 'primereact/button';
-import { InputSwitch, InputSwitchChangeEvent } from 'primereact/inputswitch';
-import { RadioButton, RadioButtonChangeEvent } from 'primereact/radiobutton';
+import { InputSwitch } from 'primereact/inputswitch';
+import { RadioButton } from 'primereact/radiobutton';
 import { Sidebar } from 'primereact/sidebar';
 import { classNames } from 'primereact/utils';
 import React, { useContext, useEffect, useState } from 'react';
-import { AppConfigProps, LayoutConfig, LayoutState } from '@/types';
 import { LayoutContext } from './context/layoutcontext';
 
-const AppConfig = (props: AppConfigProps) => {
+const AppConfig = (props) => {
     const [scales] = useState([12, 13, 14, 15, 16]);
     const { layoutConfig, setLayoutConfig, layoutState, setLayoutState } = useContext(LayoutContext);
     const { setRipple, changeTheme } = useContext(PrimeReactContext);
 
     const onConfigButtonClick = () => {
-        setLayoutState((prevState: LayoutState) => ({ ...prevState, configSidebarVisible: true }));
+        setLayoutState((prevState) => ({ ...prevState, configSidebarVisible: true }));
     };
 
     const onConfigSidebarHide = () => {
-        setLayoutState((prevState: LayoutState) => ({ ...prevState, configSidebarVisible: false }));
+        setLayoutState((prevState) => ({ ...prevState, configSidebarVisible: false }));
     };
 
-    const changeInputStyle = (e: RadioButtonChangeEvent) => {
-        setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, inputStyle: e.value }));
+    const changeInputStyle = (e) => {
+        setLayoutConfig((prevState) => ({ ...prevState, inputStyle: e.value }));
     };
 
-    const changeRipple = (e: InputSwitchChangeEvent) => {
-        setRipple?.(e.value as boolean);
-        setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, ripple: e.value as boolean }));
+    const changeRipple = (e) => {
+        setRipple?.(e.value);
+        setLayoutConfig((prevState) => ({ ...prevState, ripple: e.value }));
     };
 
-    const changeMenuMode = (e: RadioButtonChangeEvent) => {
-        setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, menuMode: e.value }));
+    const changeMenuMode = (e) => {
+        setLayoutConfig((prevState) => ({ ...prevState, menuMode: e.value }));
     };
 
-    const _changeTheme = (theme: string, colorScheme: string) => {
+    const _changeTheme = (theme, colorScheme) => {
         changeTheme?.(layoutConfig.theme, theme, 'theme-css', () => {
-            setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, theme, colorScheme }));
+            setLayoutConfig((prevState) => ({ ...prevState, theme, colorScheme }));
         });
     };
 
     const decrementScale = () => {
-        setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, scale: prevState.scale - 1 }));
+        setLayoutConfig((prevState) => ({ ...prevState, scale: prevState.scale - 1 }));
     };
 
     const incrementScale = () => {
-        setLayoutConfig((prevState: LayoutConfig) => ({ ...prevState, scale: prevState.scale + 1 }));
+        setLayoutConfig((prevState) => ({ ...prevState, scale: prevState.scale + 1 }));
     };
 
     const applyScale = () => {
@@ -104,7 +103,7 @@ const AppConfig = (props: AppConfigProps) => {
                         </div>
 
                         <h5>Ripple Effect</h5>
-                        <InputSwitch checked={layoutConfig.ripple as boolean} onChange={(e) => changeRipple(e)}></InputSwitch>
+                        <InputSwitch checked={layoutConfig.ripple} onChange={(e) => changeRipple(e)}></InputSwitch>
                     </>
                 )}
                 <h5>PrimeOne Design</h5>

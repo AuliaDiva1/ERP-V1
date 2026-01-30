@@ -1,9 +1,9 @@
+'use client';
 import React, { useState, createContext } from 'react';
-import { ChildContainerProps, MenuContextProps } from '@/types';
 
-export const MenuContext = createContext({} as MenuContextProps);
+export const MenuContext = createContext({});
 
-export const MenuProvider = ({ children }: ChildContainerProps) => {
+export const MenuProvider = ({ children }) => {
     const [activeMenu, setActiveMenu] = useState('');
 
     const value = {

@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, createContext } from 'react';
-import { LayoutState, ChildContainerProps, LayoutConfig, LayoutContextProps } from '@/types';
-export const LayoutContext = createContext({} as LayoutContextProps);
+// Dihapus: impor tipe
+export const LayoutContext = createContext({});
 
-export const LayoutProvider = ({ children }: ChildContainerProps) => {
-    const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>({
+export const LayoutProvider = ({ children }) => {
+    const [layoutConfig, setLayoutConfig] = useState({
         ripple: false,
         inputStyle: 'outlined',
         menuMode: 'static',
@@ -13,7 +13,7 @@ export const LayoutProvider = ({ children }: ChildContainerProps) => {
         scale: 14
     });
 
-    const [layoutState, setLayoutState] = useState<LayoutState>({
+    const [layoutState, setLayoutState] = useState({
         staticMenuDesktopInactive: false,
         overlayMenuActive: false,
         profileSidebarVisible: false,
@@ -46,7 +46,7 @@ export const LayoutProvider = ({ children }: ChildContainerProps) => {
         return window.innerWidth > 991;
     };
 
-    const value: LayoutContextProps = {
+    const value = {
         layoutConfig,
         setLayoutConfig,
         layoutState,

@@ -2,20 +2,27 @@
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export const up = function (knex) {
-  return knex.schema.createTableIfNotExists("users", (table) => {
-    table.bigIncrements("id").primary();
-    table.string("name", 100).notNullable();
-    table.string("email", 100).notNullable().unique();
-    table.string("password").notNullable();
-    table.enu("role", ["admin", "user"]).notNullable().defaultTo("user");
-  });
-};
+export async function up(knex) {
+  return knex.schema.createTable('users', (table) => {
+    table.increments('id').primary();
+    table.string('name', 100).notNullable();
+    table.string('email', 100).unique().notNullable();
+    table.string('password', 255).notNullable();
 
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
-export const down = function (knex) {
-  return knex.schema.dropTableIfExists("users");
-};
+    table.enu('role', [
+      'SUPERADMIN',
+      'GUDANG',
+      'PRODUKSI',
+      'HR',
+      'KEUANGAN'
+    ]).notNullable().defaultTo('GUDANG'); 
+    // default bisa kamu ubah sesuai kebutuhan
+
+    table.timestamp('created_at').defaultTo(knex.fn.now());
+    table.timestamp('updated_at').defaultTo(knex.fn.now());
+  });
+}
+
+export async function down(knex) {
+  return knex.schema.dropTableIfExists('users');
+}

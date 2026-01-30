@@ -1,18 +1,13 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { Toast } from 'primereact/toast';
-import { ToastMessage, Toast as ToastType } from 'primereact/toast';
-// import { ToastMessage } from "primereact/api";
+// import { ToastMessage } from "primereact/api"; // Dihapus karena tidak digunakan
 
-export interface ToastNotifierHandle {
-    showToast: (status: string, message?: string) => void;
-}
-
-const ToastNotifier = forwardRef<ToastNotifierHandle>((_, ref) => {
-    const toast = useRef<ToastType>(null);
+const ToastNotifier = forwardRef((_, ref) => {
+    const toast = useRef(null);
 
     useImperativeHandle(ref, () => ({
-        showToast(status: string, message = '') {
-            let config: ToastMessage = {};
+        showToast(status, message = '') {
+            let config = {};
 
             switch (status) {
                 case '00':
