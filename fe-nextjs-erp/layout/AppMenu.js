@@ -39,7 +39,7 @@ const AppMenu = () => {
                         label: "User Management",
                         icon: "pi pi-fw pi-users",
                         items: [
-                            { label: "Kelola User", icon: "pi pi-fw pi-user-plus", to: "/superadmin/users" },
+                            { label: "Kelola User", icon: "pi pi-fw pi-user-plus", to: "/master/users" },
                             { label: "Role & Permission", icon: "pi pi-fw pi-shield", to: "/superadmin/roles" },
                             { label: "Activity Log", icon: "pi pi-fw pi-history", to: "/superadmin/logs" }
                         ]
