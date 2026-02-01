@@ -5,7 +5,7 @@ import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Tag } from 'primereact/tag';
 import ToastNotifier from '../../../components/ToastNotifier';
-import HeaderBar from '../../../components/headerbar'; // ✅ Import HeaderBar
+import HeaderBar from '../../../components/headerbar';
 import UserFormModal from './components/UserFormModal';
 import { getUsers, createUser, updateUser, deleteUser } from './utils/api';
 import CustomDataTable from '../../../components/DataTable';
@@ -14,25 +14,22 @@ import { useRouter } from 'next/navigation';
 export default function UsersPage() {
   const router = useRouter();
   const toastRef = useRef(null);
+  const isMounted = useRef(true);
 
   const [users, setUsers] = useState([]);
-  const [originalData, setOriginalData] = useState([]); // ✅ Tambahkan untuk search
+  const [originalData, setOriginalData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [dialogMode, setDialogMode] = useState(null);
   const [token, setToken] = useState('');
+  
+  // State untuk track permission dari backend
+  const [hasAccess, setHasAccess] = useState(true);
 
   useEffect(() => {
     const t = localStorage.getItem('TOKEN');
-    const role = localStorage.getItem('ROLE');
     
     if (!t) {
-      router.push('/');
-      return;
-    }
-    
-    if (role !== 'SUPERADMIN') {
-      toastRef.current?.showToast('01', 'Anda tidak memiliki akses ke halaman ini');
       router.push('/');
       return;
     }
@@ -44,21 +41,43 @@ export default function UsersPage() {
     if (token) fetchUsers();
   }, [token]);
 
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      toastRef.current = null;
+    };
+  }, []);
+
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
       const res = await getUsers(token);
+      
+      if (!isMounted.current) return;
+      
       setUsers(res || []);
-      setOriginalData(res || []); // ✅ Simpan data original untuk search
+      setOriginalData(res || []);
+      setHasAccess(true); // User punya akses
     } catch (err) {
       console.error('Error fetching users:', err);
-      toastRef.current?.showToast('01', err.message || 'Gagal memuat data user');
+      
+      if (!isMounted.current) return;
+      
+      // Jika error 403 atau 401, berarti tidak punya akses
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        setHasAccess(false);
+        toastRef.current?.showToast('01', 'Anda tidak memiliki akses ke halaman ini');
+        // Redirect ke dashboard atau halaman lain
+        setTimeout(() => router.push('/dashboard'), 2000);
+      } else {
+        toastRef.current?.showToast('01', err.message || 'Gagal memuat data user');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) setIsLoading(false);
     }
   };
 
-  // ✅ Search handler
+  // Search handler
   const handleSearch = (keyword) => {
     if (!keyword) {
       setUsers(originalData);
@@ -85,12 +104,23 @@ export default function UsersPage() {
         await updateUser(token, selectedUser.id, data);
         toastRef.current?.showToast('00', 'User berhasil diupdate');
       }
-      fetchUsers();
-      setDialogMode(null);
-      setSelectedUser(null);
+      
+      if (isMounted.current) {
+        await fetchUsers();
+        setDialogMode(null);
+        setSelectedUser(null);
+      }
     } catch (err) {
       console.error('Error submitting user:', err);
-      toastRef.current?.showToast('01', err.message || 'Gagal menyimpan user');
+      
+      // Handle error dari backend
+      if (err.response?.status === 403) {
+        toastRef.current?.showToast('01', 'Anda tidak memiliki izin untuk melakukan aksi ini');
+      } else if (err.response?.status === 409) {
+        toastRef.current?.showToast('01', 'Email sudah terdaftar');
+      } else {
+        toastRef.current?.showToast('01', err.response?.data?.message || err.message || 'Gagal menyimpan user');
+      }
     }
   };
 
@@ -106,11 +136,21 @@ export default function UsersPage() {
         try {
           await deleteUser(token, user.id);
           toastRef.current?.showToast('00', 'User berhasil dihapus');
-          setUsers((prev) => prev.filter((u) => u.id !== user.id));
-          setOriginalData((prev) => prev.filter((u) => u.id !== user.id));
+          
+          if (isMounted.current) {
+            await fetchUsers();
+          }
         } catch (err) {
           console.error('Error deleting user:', err);
-          toastRef.current?.showToast('01', err.message || 'Gagal menghapus user');
+          
+          // Handle error dari backend
+          if (err.response?.status === 403) {
+            toastRef.current?.showToast('01', 'Anda tidak memiliki izin untuk menghapus user');
+          } else if (err.response?.status === 400) {
+            toastRef.current?.showToast('01', 'Tidak dapat menghapus user ini');
+          } else {
+            toastRef.current?.showToast('01', err.response?.data?.message || err.message || 'Gagal menghapus user');
+          }
         }
       },
     });
@@ -120,10 +160,14 @@ export default function UsersPage() {
   const roleBodyTemplate = (rowData) => {
     const roleColors = {
       SUPERADMIN: 'danger',
+      ADMIN: 'warning',
       GUDANG: 'info',
-      PRODUKSI: 'warning',
+      PRODUKSI: 'primary',
       HR: 'success',
-      KEUANGAN: 'primary',
+      KEUANGAN: 'help',
+      MANAGER: 'warning',
+      USER: 'secondary',
+      STAFF: 'info',
     };
 
     return (
@@ -170,18 +214,21 @@ export default function UsersPage() {
     { 
       field: 'name', 
       header: 'Nama', 
+      style: { minWidth: '200px' },
       filter: true,
       sortable: true
     },
     { 
       field: 'email', 
       header: 'Email', 
+      style: { minWidth: '250px' },
       filter: true,
       sortable: true
     },
     { 
       field: 'role', 
       header: 'Role',
+      style: { minWidth: '140px' },
       body: roleBodyTemplate,
       filter: true,
       sortable: true
@@ -208,6 +255,25 @@ export default function UsersPage() {
     },
   ];
 
+  // Jika tidak punya akses, tampilkan pesan
+  if (!hasAccess) {
+    return (
+      <div className="card p-4">
+        <ToastNotifier ref={toastRef} />
+        <div className="text-center py-8">
+          <i className="pi pi-lock text-6xl text-500 mb-4"></i>
+          <h3 className="text-xl font-semibold mb-2">Akses Ditolak</h3>
+          <p className="text-500 mb-4">Anda tidak memiliki izin untuk mengakses halaman ini.</p>
+          <Button 
+            label="Kembali ke Dashboard" 
+            icon="pi pi-home"
+            onClick={() => router.push('/dashboard')}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card p-4">
       <ToastNotifier ref={toastRef} />
@@ -215,7 +281,7 @@ export default function UsersPage() {
 
       <h3 className="text-xl font-semibold mb-3">Manajemen User</h3>
 
-      {/* ✅ HeaderBar dengan Search dan Tambah */}
+      {/* HeaderBar dengan Search dan Tambah */}
       <div className="mb-4">
         <HeaderBar
           title=""
@@ -225,6 +291,7 @@ export default function UsersPage() {
             setSelectedUser(null);
             setDialogMode('add');
           }}
+          showAddButton={true}
         />
       </div>
 
