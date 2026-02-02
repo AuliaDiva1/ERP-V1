@@ -7,7 +7,7 @@ import { setResponseHeader } from "./middleware/set-headers.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import masterVendorRoutes from "./routes/masterVendorRoutes.js";
-
+import masterHariRoutes from "./routes/masterHariRoutes.js";
 const app = express();
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
@@ -41,6 +41,7 @@ app.get("/", [setResponseHeader], (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/master-vendor", masterVendorRoutes);
+app.use("/api/master-hari", masterHariRoutes);
 
 
 export default app;

@@ -48,6 +48,7 @@ const AppMenu = () => {
                         label: "Master Data",
                         icon: "pi pi-fw pi-database",
                         items: [
+                            { label: "Master Hari", icon: "pi pi-fw pi-building", to: "/master/hari" },
                             { label: "Master Supplier", icon: "pi pi-fw pi-building", to: "/master/supplier" },
                             { label: "Master Customer", icon: "pi pi-fw pi-users", to: "/master/customer" },
                             { label: "Master Produk", icon: "pi pi-fw pi-box", to: "/master/produk" },
