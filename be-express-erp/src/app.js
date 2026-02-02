@@ -8,6 +8,12 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import masterVendorRoutes from "./routes/masterVendorRoutes.js";
 import masterHariRoutes from "./routes/masterHariRoutes.js";
+
+// Import Rute Baru untuk Inventaris
+import masterJenisBarangRoutes from "./routes/masterJenisBarangRoutes.js";
+import masterSatuanBarangRoutes from "./routes/masterSatuanBarangRoutes.js";
+import masterBarangRoutes from "./routes/masterBarangRoutes.js";
+
 const app = express();
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
@@ -38,10 +44,15 @@ app.get("/", [setResponseHeader], (req, res) => {
   return res.status(200).json(`Welcome to the server! ${new Date().toLocaleString()}`);
 });
 
+// Routes Dasar
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/master-vendor", masterVendorRoutes);
 app.use("/api/master-hari", masterHariRoutes);
 
+// Routes Master Inventaris
+app.use("/api/master-jenis-barang", masterJenisBarangRoutes);
+app.use("/api/master-satuan-barang", masterSatuanBarangRoutes);
+app.use("/api/master-barang", masterBarangRoutes);
 
 export default app;
