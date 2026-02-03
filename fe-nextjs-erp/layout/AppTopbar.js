@@ -36,33 +36,38 @@ const AppTopbar = forwardRef((props, ref) => {
     }, []);
 
     const handleLogout = async () => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token =
+        typeof window !== "undefined"
+        ? localStorage.getItem("TOKEN") 
+        : null;
 
-        try {
-            if (token) {
-                await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/auth/logout`,
-                    {},
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
-                toastRef.current?.showToast("00", "Logout berhasil");
+    try {
+        if (token) {
+        await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/logout`,
+            {},
+            {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
             }
-        } catch (error) {
-            console.error("Logout gagal:", error);
-            toastRef.current?.showToast("01", "Logout gagal");
-        } finally {
-            localStorage.removeItem("token");
-            localStorage.removeItem("ROLE");
-            localStorage.removeItem("USER_NAME");
+        );
 
-            router.push("/auth/login");
+        toastRef.current?.showToast("00", "Logout berhasil");
         }
+    } catch (error) {
+        console.error("Logout gagal:", error);
+        toastRef.current?.showToast("01", "Logout gagal");
+    } finally {
+        // ✅ HAPUS SEMUA SESSION
+        localStorage.removeItem("TOKEN");
+        localStorage.removeItem("ROLE");
+        localStorage.removeItem("USER_NAME");
+        localStorage.removeItem("USER_EMAIL");
+        localStorage.removeItem("USER_ID");
+
+        router.replace("/auth/login");
+    }
     };
 
     return (
@@ -70,12 +75,7 @@ const AppTopbar = forwardRef((props, ref) => {
             <ToastNotifier ref={toastRef} />
 
             <Link href="/" className="layout-topbar-logo">
-                <img
-                    src={`/layout/images/logo.png`}
-                    width="47.22px"
-                    height={"35px"}
-                    alt="logo"
-                />
+            <img src={`/layout/images/logo-${layoutConfig.colorScheme !== 'light' ? 'white' : 'dark'}.svg`} width="47.22px" height={'35px'} alt="logo" />
                 <span>{process.env.NEXT_PUBLIC_APP_NAME}</span>
             </Link>
 

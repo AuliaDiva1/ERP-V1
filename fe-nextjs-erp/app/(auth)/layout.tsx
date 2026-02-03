@@ -6,7 +6,7 @@ interface SimpleLayoutProps {
 }
 
 export const metadata: Metadata = {
-    title: 'Auth | Monitor Suhu',
+    title: 'Auth | ERP',
     description: 'Silahkan login terlebih dahulu'
 };
 

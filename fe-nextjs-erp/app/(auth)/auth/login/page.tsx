@@ -160,7 +160,7 @@ const LoginPage = () => {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="yourname@company.com"
+                        placeholder="yourname@gmail.com"
                         className="w-full"
                         style={{ paddingLeft: '2.5rem' }}
                         disabled={loading}
