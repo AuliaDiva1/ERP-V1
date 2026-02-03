@@ -40,8 +40,6 @@ const AppMenu = () => {
                         icon: "pi pi-fw pi-users",
                         items: [
                             { label: "Kelola User", icon: "pi pi-fw pi-user-plus", to: "/master/users" },
-                            { label: "Role & Permission", icon: "pi pi-fw pi-shield", to: "/superadmin/roles" },
-                            { label: "Activity Log", icon: "pi pi-fw pi-history", to: "/superadmin/logs" }
                         ]
                     },
                     {
@@ -49,18 +47,12 @@ const AppMenu = () => {
                         icon: "pi pi-fw pi-database",
                         items: [
                             { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
-                            { label: "Master Supplier", icon: "pi pi-fw pi-building", to: "/master/supplier" },
-                            { label: "Master Customer", icon: "pi pi-fw pi-users", to: "/master/customer" },
-                            { label: "Master Produk", icon: "pi pi-fw pi-box", to: "/master/produk" },
                             // --- Tambahan Menu Baru ---
                             { label: "Master Barang", icon: "pi pi-fw pi-briefcase", to: "/master/master_barang" },
                             { label: "Jenis Barang", icon: "pi pi-fw pi-list", to: "/master/jenis_barang" },
                             { label: "Satuan Barang", icon: "pi pi-fw pi-info-circle", to: "/master/satuan_barang" },
                             // --------------------------
-                            { label: "Master Bahan Baku", icon: "pi pi-fw pi-inbox", to: "/master/bahan-baku" },
                             { label: "Master Vendor", icon: "pi pi-fw pi-truck", to: "/master/vendor" },
-                            { label: "Master Kategori", icon: "pi pi-fw pi-tags", to: "/master/kategori" },
-                            { label: "Master Satuan", icon: "pi pi-fw pi-calculator", to: "/master/satuan" }
                         ]
                     },
                     {
