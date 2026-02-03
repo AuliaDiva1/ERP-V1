@@ -39,17 +39,26 @@ export const getInvPembelianById = async (req, res) => {
  */
 export const createInvPembelian = async (req, res) => {
   try {
-    const { NO_INVOICE_BELI, KODE_VENDOR, TGL_INVOICE, TOTAL_BAYAR } = req.body;
+    const { NO_INVOICE_BELI, VENDOR_ID, TGL_INVOICE, TOTAL_BAYAR } = req.body;
 
-    // Validasi input manual di controller sebelum ke model
-    if (!NO_INVOICE_BELI || !KODE_VENDOR || !TGL_INVOICE || !TOTAL_BAYAR) {
+    // 1. Validasi input (Ganti KODE_VENDOR jadi VENDOR_ID)
+    if (!NO_INVOICE_BELI || !VENDOR_ID || !TGL_INVOICE || !TOTAL_BAYAR) {
       return res.status(400).json({
         status: "01",
-        message: "Data wajib diisi: NO_INVOICE_BELI, KODE_VENDOR, TGL_INVOICE, TOTAL_BAYAR"
+        message: "Data wajib diisi: NO_INVOICE_BELI, VENDOR_ID, TGL_INVOICE, TOTAL_BAYAR"
       });
     }
 
-    // Panggil fungsi createInvPembelian dari Model
+    // 2. Cek apakah nomor invoice sudah pernah terdaftar
+    const checkDuplicate = await InvPembelianModel.getInvPembelianByNo(NO_INVOICE_BELI);
+    if (checkDuplicate) {
+      return res.status(400).json({
+        status: "01",
+        message: `Nomor Invoice ${NO_INVOICE_BELI} sudah ada di sistem!`
+      });
+    }
+
+    // 3. Panggil Model
     const result = await InvPembelianModel.createInvPembelian(req.body);
 
     res.status(201).json({
@@ -58,7 +67,6 @@ export const createInvPembelian = async (req, res) => {
       data: result
     });
   } catch (err) {
-    // Menangkap error dari database atau error "Data wajib diisi" dari Model
     res.status(500).json({ status: "99", error: err.message });
   }
 };
