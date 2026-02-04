@@ -45,13 +45,22 @@ export const createGudang = async (req, res) => {
  */
 export const updateGudang = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Ambil ID dari params. Pastikan di routes penulisan :id sesuai
+    const { id } = req.params; 
+
+    if (!id || id === "undefined") {
+      return res.status(400).json({ status: "01", message: "ID Gudang tidak valid" });
+    }
+
     const existing = await MasterGudangModel.getGudangById(id);
     if (!existing) {
       return res.status(404).json({ status: "04", message: "Gudang tidak ditemukan" });
     }
 
-    const updated = await MasterGudangModel.updateGudang(id, req.body);
+    // Filter body untuk memastikan tidak mencoba update primary key (ID_GUDANG)
+    const { ID_GUDANG, ...updateData } = req.body;
+
+    const updated = await MasterGudangModel.updateGudang(id, updateData);
     return res.status(200).json({ status: "00", message: "Gudang berhasil diperbarui", data: updated });
   } catch (err) {
     return res.status(500).json({ status: "99", message: "Gagal memperbarui gudang", error: err.message });
@@ -64,6 +73,11 @@ export const updateGudang = async (req, res) => {
 export const deleteGudang = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!id || id === "undefined") {
+      return res.status(400).json({ status: "01", message: "ID Gudang tidak valid" });
+    }
+
     const existing = await MasterGudangModel.getGudangById(id);
     if (!existing) {
       return res.status(404).json({ status: "04", message: "Gudang tidak ditemukan" });

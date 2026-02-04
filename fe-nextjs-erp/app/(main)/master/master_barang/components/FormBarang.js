@@ -22,18 +22,19 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Sync data saat dialog dibuka atau data terpilih berubah
   useEffect(() => {
     if (visible && selectedData) {
       setFormData({ 
-        ...selectedData,
-        // Pastikan nilai null dari DB terkonversi ke default form
+        BARANG_KODE: selectedData.BARANG_KODE || "",
+        NAMA_BARANG: selectedData.NAMA_BARANG || "",
+        JENIS_ID: selectedData.JENIS_ID || null,
+        SATUAN_ID: selectedData.SATUAN_ID || null,
         STOK_MINIMAL: selectedData.STOK_MINIMAL || 0,
         STOK_SAAT_INI: selectedData.STOK_SAAT_INI || 0,
         HARGA_BELI_TERAKHIR: selectedData.HARGA_BELI_TERAKHIR || 0,
+        STATUS: selectedData.STATUS === "Tidak Aktif" ? "Tidak Aktif" : "Aktif",
       });
     } else {
-      // Reset ke awal untuk Tambah Data Baru
       setFormData({
         BARANG_KODE: "",
         NAMA_BARANG: "",
@@ -62,26 +63,32 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    // Payload yang dikirim hanya kolom murni database (tanpa alias atau kolom otomatis)
+    // Pastikan payload bersih dan tipe data benar (terutama angka)
     const payload = {
-      BARANG_KODE: formData.BARANG_KODE,
-      NAMA_BARANG: formData.NAMA_BARANG,
-      JENIS_ID: formData.JENIS_ID,
-      SATUAN_ID: formData.SATUAN_ID,
-      STOK_MINIMAL: formData.STOK_MINIMAL,
-      STOK_SAAT_INI: formData.STOK_SAAT_INI,
-      HARGA_BELI_TERAKHIR: formData.HARGA_BELI_TERAKHIR,
-      STATUS: formData.STATUS
+      BARANG_KODE: formData.BARANG_KODE.trim(),
+      NAMA_BARANG: formData.NAMA_BARANG.trim(),
+      JENIS_ID: parseInt(formData.JENIS_ID),
+      SATUAN_ID: parseInt(formData.SATUAN_ID),
+      STOK_MINIMAL: Number(formData.STOK_MINIMAL) || 0,
+      STOK_SAAT_INI: Number(formData.STOK_SAAT_INI) || 0,
+      HARGA_BELI_TERAKHIR: Number(formData.HARGA_BELI_TERAKHIR) || 0,
+      STATUS: formData.STATUS // Harus "Aktif" atau "Tidak Aktif"
     };
 
     setLoading(true);
-    await onSave(payload); 
-    setLoading(false);
+    try {
+        await onSave(payload); 
+    } catch (error) {
+        console.error("Submit Error:", error);
+    } finally {
+        setLoading(false);
+    }
   };
 
+  // PERBAIKAN: Value harus "Tidak Aktif" agar sesuai dengan Migration table.enu
   const statusOptions = [
     { label: "Aktif", value: "Aktif" },
-    { label: "Non-Aktif", value: "Non-Aktif" },
+    { label: "Tidak Aktif", value: "Tidak Aktif" }, 
   ];
 
   return (
@@ -93,8 +100,7 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
       onHide={onHide}
       draggable={false}
     >
-      <div className="p-fluid grid">
-        {/* Row 1: Kode & Nama */}
+      <div className="p-fluid grid mt-2">
         <div className="field col-12 md:col-6">
           <label className="font-bold">Kode Barang</label>
           <InputText 
@@ -116,7 +122,6 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
           {errors.NAMA_BARANG && <small className="p-error">{errors.NAMA_BARANG}</small>}
         </div>
 
-        {/* Row 2: Jenis & Satuan (Dropdown dari DB) */}
         <div className="field col-12 md:col-6">
           <label className="font-bold">Jenis Barang</label>
           <Dropdown 
@@ -128,6 +133,7 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
             onChange={(e) => setFormData({...formData, JENIS_ID: e.value})}
             className={errors.JENIS_ID ? 'p-invalid' : ''}
           />
+          {errors.JENIS_ID && <small className="p-error">{errors.JENIS_ID}</small>}
         </div>
 
         <div className="field col-12 md:col-6">
@@ -141,9 +147,9 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
             onChange={(e) => setFormData({...formData, SATUAN_ID: e.value})}
             className={errors.SATUAN_ID ? 'p-invalid' : ''}
           />
+          {errors.SATUAN_ID && <small className="p-error">{errors.SATUAN_ID}</small>}
         </div>
 
-        {/* Row 3: Stok Minimal & Stok Saat Ini */}
         <div className="field col-12 md:col-6">
           <label className="font-bold">Stok Minimal</label>
           <InputNumber 
@@ -162,7 +168,6 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
           />
         </div>
 
-        {/* Row 4: Harga & Status */}
         <div className="field col-12 md:col-6">
           <label className="font-bold">Harga Beli Terakhir</label>
           <InputNumber 
@@ -183,7 +188,6 @@ const FormBarang = ({ visible, onHide, onSave, selectedData, jenisList, satuanLi
           />
         </div>
 
-        {/* Footer Actions */}
         <div className="col-12 mt-4 flex justify-content-end gap-2">
           <Button label="Batal" icon="pi pi-times" className="p-button-text" onClick={onHide} />
           <Button label="Simpan Data" icon="pi pi-save" loading={loading} onClick={handleSubmit} />

@@ -53,6 +53,7 @@ const AppMenu = () => {
                             { label: "Satuan Barang", icon: "pi pi-fw pi-info-circle", to: "/master/satuan_barang" },
                             // --------------------------
                             { label: "Master Vendor", icon: "pi pi-fw pi-truck", to: "/master/vendor" },
+                            { label: "Master Gudang", icon: "pi pi-fw pi-calendar", to: "/master/gudang" },
                         ]
                     },
                     {
