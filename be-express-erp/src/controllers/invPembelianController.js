@@ -1,5 +1,6 @@
 import * as InvPembelianModel from "../models/invPembelianModel.js";
 import * as InvPembelianDModel from "../models/invPembelianDModel.js";
+import * as PembayaranBeliModel from "../models/pembayaranBeliModel.js"; // <--- TAMBAHKAN IMPORT INI
 
 /**
  * ==========================================================
@@ -31,11 +32,16 @@ export const getInvPembelianById = async (req, res) => {
 export const createInvPembelian = async (req, res) => {
   try {
     const { NO_INVOICE_BELI } = req.body;
+    
+    if (!NO_INVOICE_BELI) {
+      return res.status(400).json({ status: "01", message: "Nomor Invoice wajib diisi manual!" });
+    }
+
     const check = await InvPembelianModel.getInvPembelianByNo(NO_INVOICE_BELI);
-    if (check) return res.status(400).json({ status: "01", message: "Nomor Invoice sdh ada" });
+    if (check) return res.status(400).json({ status: "01", message: "Nomor Invoice sudah terdaftar di sistem" });
 
     const result = await InvPembelianModel.createInvPembelian(req.body);
-    res.status(201).json({ status: "00", message: "Header Dibuat", data: result });
+    res.status(201).json({ status: "00", message: "Header Berhasil Dibuat", data: result });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
@@ -46,13 +52,12 @@ export const updateInvPembelian = async (req, res) => {
     const { id } = req.params;
     const decodedId = decodeURIComponent(id);
     await InvPembelianModel.updateInvPembelian(decodedId, req.body);
-    res.status(200).json({ status: "00", message: "Updated" });
+    res.status(200).json({ status: "00", message: "Update Berhasil" });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
 };
 
-// Hapus sampe ke akar
 export const deleteInvPembelian = async (req, res) => {
   try {
     const { id } = req.params;
@@ -108,19 +113,27 @@ export const deleteDetailItem = async (req, res) => {
 
 /**
  * ==========================================================
- * Bagian 3: SUPER CREATE (LOGIC TAMBAHAN TANPA UBAH MODEL)
+ * Bagian 3: SUPER CREATE (Header + Items + Payment dalam satu transaksi)
  * ==========================================================
  */
 export const createFullPurchase = async (req, res) => {
   try {
     const { header, items } = req.body;
 
-    // VALIDASI DASAR
-    if (!header.NO_INVOICE_BELI || !items || items.length === 0) {
-      return res.status(400).json({ status: "01", message: "Data tidak lengkap" });
+    if (!header.NO_INVOICE_BELI) {
+      return res.status(400).json({ status: "01", message: "Nomor Invoice (Header) wajib diisi!" });
     }
 
-    // MAPPING DATA (Supaya pas dengan kolom PHPMyAdmin Om)
+    if (!items || items.length === 0) {
+      return res.status(400).json({ status: "01", message: "Minimal harus ada 1 barang dalam invoice" });
+    }
+
+    const checkDuplicate = await InvPembelianModel.getInvPembelianByNo(header.NO_INVOICE_BELI);
+    if (checkDuplicate) {
+      return res.status(400).json({ status: "01", message: `Nomor Invoice ${header.NO_INVOICE_BELI} sudah pernah diinput!` });
+    }
+
+    // 1. MAPPING DATA HEADER
     const finalHeader = {
       NO_INVOICE_BELI: header.NO_INVOICE_BELI,
       VENDOR_ID: header.VENDOR_ID,
@@ -130,6 +143,7 @@ export const createFullPurchase = async (req, res) => {
       STATUS_BAYAR: header.STATUS_BAYAR || "Belum Lunas",
     };
 
+    // 2. MAPPING DATA ITEMS
     const finalItems = items.map((item) => ({
       NO_INVOICE_BELI: header.NO_INVOICE_BELI,
       BARANG_KODE: item.BARANG_KODE,
@@ -142,16 +156,35 @@ export const createFullPurchase = async (req, res) => {
       TGL_KADALUARSA: item.TGL_KADALUARSA || null
     }));
 
-    // Eksekusi Model dengan Transaksi
-    // Pastikan di InvPembelianModel.saveFullPurchase menangkap (finalHeader, finalItems)
-    await InvPembelianModel.saveFullPurchase(finalHeader, finalItems);
+    // 3. LOGIKA PEMBAYARAN (DP)
+    let paymentData = null;
+    const nominalBayar = parseFloat(header.JUMLAH_BAYAR) || 0;
+    
+    if (nominalBayar > 0) {
+      paymentData = {
+        NO_KWITANSI: `KW-${Date.now()}`, // Generate kwitansi otomatis
+        NO_INVOICE_BELI: header.NO_INVOICE_BELI,
+        TGL_BAYAR: header.TGL_INVOICE, // Default tanggal invoice
+        NOMINAL_BAYAR: nominalBayar,
+        KETERANGAN: "Uang Muka (DP) Transaksi Baru"
+      };
+    }
 
-    res.status(201).json({ status: "00", message: "Transaksi Lengkap Berhasil!" });
+    // 4. SIMPAN SEMUA (Update Model Anda untuk menerima data payment ini)
+    // Jika model saveFullPurchase belum support parameter ke-3, 
+    // Anda bisa memanggil PembayaranBeliModel secara manual di sini.
+    await InvPembelianModel.saveFullPurchase(finalHeader, finalItems);
+    
+    if (paymentData) {
+      await PembayaranBeliModel.createPembayaran(paymentData);
+    }
+
+    res.status(201).json({ status: "00", message: "Transaksi & Pembayaran Berhasil Disimpan!" });
   } catch (err) {
     console.error("DEBUG ERROR API:", err);
     res.status(500).json({ 
       status: "99", 
-      message: "Server Error: " + (err.sqlMessage || err.message) 
+      message: "Gagal Simpan: " + (err.sqlMessage || err.message) 
     });
   }
 };

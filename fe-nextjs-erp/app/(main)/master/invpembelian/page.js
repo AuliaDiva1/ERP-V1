@@ -14,7 +14,8 @@ import CustomDataTable from "../../../components/DataTable";
 import AdjustPrintLaporan from "./print/AdjustPrintLaporan";
 import { generateFakturPDF } from "./print/PrintDetailInvoice";
 import FormPembelian from "./components/FormPembelian";
-import FormPelunasan from "./components/FormPelunasan"; // Komponen Pelunasan Pro Om
+import FormPelunasan from "./components/FormPelunasan";
+import PembelianDetailDialog from "./components/DetailPage"; // <--- Import Komponen Baru
 
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
 
@@ -31,7 +32,8 @@ export default function PembelianPage() {
     vendors: [],
     barangs: [],
     gudangs: [],
-    raks: []
+    raks: [],
+    jenisBarangs: [] 
   });
 
   // State Modal & PDF
@@ -43,6 +45,11 @@ export default function PembelianPage() {
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
   const [adjustPrintDialog, setAdjustPrintDialog] = useState(false);
 
+  // --- STATE UNTUK DETAIL PAGE ---
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailItems, setDetailItems] = useState([]);
+  const [detailPayments, setDetailPayments] = useState([]);
+
   // 1. Initial Load
   useEffect(() => {
     const t = localStorage.getItem("TOKEN");
@@ -53,23 +60,28 @@ export default function PembelianPage() {
     }
   }, []);
 
-  // 2. Fungsi Ambil Data
+  // 2. Ambil Data Master
   const fetchMasterData = async (t) => {
     try {
       const config = { headers: { Authorization: `Bearer ${t}` } };
-      const [v, b, g, r] = await Promise.all([
+      const [v, b, g, r, j] = await Promise.all([
         axios.get(`${API_URL}/master-vendor`, config),
         axios.get(`${API_URL}/master-barang`, config),
         axios.get(`${API_URL}/master-gudang`, config),
         axios.get(`${API_URL}/master-rak`, config),
+        axios.get(`${API_URL}/master-jenis-barang`, config),
       ]);
+      
       setMasterData({
         vendors: v.data.data || [],
         barangs: b.data.data || [],
         gudangs: g.data.data || [],
-        raks: r.data.data || []
+        raks: r.data.data || [],
+        jenisBarangs: j.data.data || []
       });
-    } catch (err) { console.error("Master Data Load Error", err); }
+    } catch (err) { 
+        console.error("Master Data Load Error", err); 
+    }
   };
 
   const fetchPembelian = async (t) => {
@@ -85,97 +97,122 @@ export default function PembelianPage() {
   };
 
   /**
-   * 3. OPERASI SAVE: Transaksi Pembelian Baru
-   * Sekaligus menambah stok di backend (Knex Transaction)
+   * FUNGSI UNTUK MEMBUKA DETAIL (DARI 3 TABEL)
+   * DISINKRONKAN DENGAN ROUTE BACKEND /history/
    */
+  const handleOpenDetail = async (rowData) => {
+    setIsLoading(true);
+    setSelectedInvoice(rowData);
+    try {
+      // Step A: Cari Alamat Vendor
+      const vLengkap = (masterData.vendors || []).find(v => 
+        v.VENDOR_ID === rowData.VENDOR_ID || v.NAMA_VENDOR === rowData.NAMA_VENDOR
+      );
+      
+      // Update selectedInvoice dengan alamat vendor
+      setSelectedInvoice({
+        ...rowData,
+        ALAMAT_VENDOR: vLengkap ? vLengkap.ALAMAT_VENDOR : "Alamat tidak ditemukan"
+      });
+
+      // Step B: Ambil Detail Barang & Histori Pembayaran secara paralel
+      // PERBAIKAN: Menggunakan /history/ sesuai routes.js backend
+      const [resDetail, resPay] = await Promise.all([
+        axios.get(`${API_URL}/inv-pembelian/detail/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/pembayaran-beli/history/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: { data: [] } })) 
+      ]);
+
+      setDetailItems(resDetail.data.data || []);
+      setDetailPayments(resPay.data.data || []);
+      setDetailVisible(true);
+    } catch (err) {
+      toastRef.current?.showToast("01", "Gagal memuat rincian transaksi");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- Fungsi Lainnya (Save, Delete, Print) ---
   const handleSave = async (payload) => {
     try {
       const res = await axios.post(`${API_URL}/inv-pembelian/full`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.status === "00") {
-        toastRef.current?.showToast("00", "Transaksi Berhasil Disimpan & Stok Bertambah!");
+        toastRef.current?.showToast("00", "Transaksi Berhasil!");
         fetchPembelian(token);
         setFormVisible(false);
       }
-    } catch (err) { 
-        const msg = err.response?.data?.message || "Gagal menyimpan transaksi";
-        toastRef.current?.showToast("01", msg); 
-    }
+    } catch (err) { toastRef.current?.showToast("01", "Gagal simpan"); }
   };
 
-  /**
-   * 4. OPERASI PELUNASAN: Hit API Cicilan/Pelunasan Hutang
-   * Menggunakan payload dari FormPelunasan yang Om kasih tadi
-   */
   const handleSavePelunasan = async (finalData) => {
     try {
       const res = await axios.post(`${API_URL}/pembayaran-beli`, finalData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
       if (res.data.status === "00") {
-        toastRef.current?.showToast("00", `Pembayaran ${finalData.NO_KWITANSI} Berhasil!`);
+        toastRef.current?.showToast("00", `Pembayaran Berhasil!`);
         setLunasVisible(false);
-        fetchPembelian(token); // Refresh table biar sisa tagihan ter-update
+        fetchPembelian(token);
       }
-    } catch (err) {
-      const msg = err.response?.data?.message || "Gagal mencatat pembayaran";
-      toastRef.current?.showToast("01", msg);
-    }
+    } catch (err) { toastRef.current?.showToast("01", "Gagal bayar"); }
   };
 
-  const openLunasForm = (rowData) => {
-    setSelectedInvoice(rowData);
-    setLunasVisible(true);
-  };
-
-  // 5. Operasi Hapus (VOID Invoice)
   const handleDelete = (rowData) => {
     confirmDialog({
-      message: `Hapus invoice ${rowData.NO_INVOICE_BELI}? Stok yang sudah masuk akan ditarik kembali!`,
-      header: 'Konfirmasi VOID Invoice',
+      message: `Hapus invoice ${rowData.NO_INVOICE_BELI}? Stok akan dikurangi!`,
+      header: 'Konfirmasi VOID',
       icon: 'pi pi-exclamation-triangle',
       acceptClassName: 'p-button-danger',
       accept: async () => {
         try {
-          const safeId = encodeURIComponent(rowData.NO_INVOICE_BELI);
-          await axios.delete(`${API_URL}/inv-pembelian/${safeId}`, {
+          await axios.delete(`${API_URL}/inv-pembelian/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          toastRef.current?.showToast("00", "Invoice Berhasil di-VOID & Stok Dikurangi");
+          toastRef.current?.showToast("00", "Invoice di-VOID");
           fetchPembelian(token);
-        } catch (err) { 
-            toastRef.current?.showToast("01", "Gagal hapus: Invoice sudah ada pembayaran atau data tidak valid"); 
-        }
+        } catch (err) { toastRef.current?.showToast("01", "Gagal VOID"); }
       }
     });
   };
 
-  // 6. Fungsi Cetak Faktur (Detail)
   const handlePrintDetail = async (rowData) => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/inv-pembelian/detail/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
+      const vLengkap = (masterData.vendors || []).find(v => v.VENDOR_ID === rowData.VENDOR_ID);
+      const resDetail = await axios.get(`${API_URL}/inv-pembelian/detail/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data.status === "00") {
-        const doc = generateFakturPDF(rowData, res.data.data);
+      
+      let dataHistoriBayar = [];
+      try {
+        // PERBAIKAN: Menggunakan /history/ sesuai routes.js backend
+        const resPay = await axios.get(`${API_URL}/pembayaran-beli/history/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        dataHistoriBayar = resPay.data.data || [];
+      } catch (e) { console.warn("No payment history"); }
+
+      if (resDetail.data.status === "00") {
+        const payloadInvoice = { ...rowData, ALAMAT_VENDOR: vLengkap?.ALAMAT_VENDOR || "Alamat tidak ditemukan" };
+        const doc = generateFakturPDF(payloadInvoice, resDetail.data.data, dataHistoriBayar);
         setPdfUrl(doc.output("datauristring"));
         setFileName(`Faktur_${rowData.NO_INVOICE_BELI}.pdf`);
         setJsPdfPreviewOpen(true);
       }
-    } catch (e) { toastRef.current?.showToast("01", "Gagal ambil detail faktur"); }
+    } catch (e) { toastRef.current?.showToast("01", "Gagal cetak"); } 
     finally { setIsLoading(false); }
   };
 
-  // 7. Template Tabel
   const statusBodyTemplate = (rowData) => {
     const s = rowData.STATUS_BAYAR || "BELUM LUNAS";
-    let color = "warning"; // Default Orange
-    if (s.toUpperCase() === "LUNAS") color = "success"; // Hijau
-    if (s.toUpperCase() === "CICIL") color = "info"; // Biru
-    return <Tag value={s.toUpperCase()} severity={color} style={{ minWidth: '80px' }} />;
+    let color = s.toUpperCase() === "LUNAS" ? "success" : s.toUpperCase() === "CICIL" ? "info" : "warning";
+    return <Tag value={s.toUpperCase()} severity={color} />;
   };
 
   const columns = [
@@ -194,12 +231,12 @@ export default function PembelianPage() {
       header: "Aksi",
       body: (r) => (
         <div className="flex gap-2">
-          {/* Tombol Bayar Muncul jika masih ada sisa hutang */}
+          <Button icon="pi pi-eye" rounded text severity="info" onClick={() => handleOpenDetail(r)} tooltip="Lihat Detail" />
           {parseFloat(r.SISA_TAGIHAN) > 0 && (
-            <Button icon="pi pi-credit-card" rounded severity="success" onClick={() => openLunasForm(r)} tooltip="Bayar/Cicil" />
+            <Button icon="pi pi-credit-card" rounded severity="success" onClick={() => { setSelectedInvoice(r); setLunasVisible(true); }} tooltip="Bayar" />
           )}
-          <Button icon="pi pi-file-pdf" rounded text severity="help" onClick={() => handlePrintDetail(r)} tooltip="Cetak Faktur" />
-          <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => handleDelete(r)} tooltip="Hapus/Void" />
+          <Button icon="pi pi-file-pdf" rounded text severity="help" onClick={() => handlePrintDetail(r)} tooltip="Cetak" />
+          <Button icon="pi pi-trash" rounded text severity="danger" onClick={() => handleDelete(r)} tooltip="Hapus" />
         </div>
       ),
     },
@@ -213,7 +250,7 @@ export default function PembelianPage() {
       <div className="flex justify-content-between align-items-center mb-4">
         <div>
            <h2 className="font-bold m-0 text-primary">Manajemen Pembelian</h2>
-           <span className="text-500">Monitoring stok masuk dan pelunasan vendor secara real-time</span>
+           <span className="text-500">Monitoring stok dan pelunasan vendor</span>
         </div>
         <div className="flex gap-2">
           <Button label="Transaksi Baru" icon="pi pi-plus" severity="success" raised onClick={() => setFormVisible(true)} />
@@ -223,36 +260,30 @@ export default function PembelianPage() {
 
       <CustomDataTable data={dataList} columns={columns} loading={isLoading} />
 
-      {/* MODAL: TRANSAKSI BARU */}
-      <FormPembelian 
-        visible={formVisible} 
-        onHide={() => setFormVisible(false)} 
-        onSave={handleSave} 
-        {...masterData} 
+      {/* FORM TRANSAKSI & PELUNASAN */}
+      <FormPembelian visible={formVisible} onHide={() => setFormVisible(false)} onSave={handleSave} {...masterData} />
+      <FormPelunasan visible={lunasVisible} onHide={() => setLunasVisible(false)} invoiceData={selectedInvoice} onSave={handleSavePelunasan} />
+
+      {/* DIALOG DETAIL (YANG BARU) */}
+      <PembelianDetailDialog 
+        visible={detailVisible} 
+        onHide={() => setDetailVisible(false)}
+        dataInvoice={selectedInvoice}
+        dataDetail={detailItems}
+        dataPembayaran={detailPayments}
+        masterData={masterData}
+        onPrint={() => handlePrintDetail(selectedInvoice)}
       />
 
-      {/* MODAL: PELUNASAN HUTANG (KOMPONEN PRO OM) */}
-      <FormPelunasan 
-        visible={lunasVisible} 
-        onHide={() => setLunasVisible(false)} 
-        invoiceData={selectedInvoice} 
-        onSave={handleSavePelunasan} 
-      />
-
-      {/* DIALOG: PDF PREVIEW */}
+      {/* PREVIEW PDF */}
       <Dialog visible={jsPdfPreviewOpen} onHide={() => setJsPdfPreviewOpen(false)} maximizable modal style={{ width: '85vw' }} header={`Preview: ${fileName}`}>
         {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />}
       </Dialog>
 
-      {/* MODAL: ADJUST LAPORAN REKAP */}
       <AdjustPrintLaporan 
-        adjustDialog={adjustPrintDialog} 
-        setAdjustDialog={setAdjustPrintDialog} 
-        dataToPrint={dataList} 
-        setPdfUrl={setPdfUrl} 
-        setFileName={setFileName} 
-        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
-        judulLaporan="LAPORAN DATA PEMBELIAN"
+        adjustDialog={adjustPrintDialog} setAdjustDialog={setAdjustPrintDialog} 
+        dataToPrint={dataList} setPdfUrl={setPdfUrl} setFileName={setFileName} 
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen} judulLaporan="LAPORAN DATA PEMBELIAN"
         columnOptions={[
           { name: "No. Invoice", value: "NO_INVOICE_BELI" },
           { name: "Vendor", value: "NAMA_VENDOR" },
