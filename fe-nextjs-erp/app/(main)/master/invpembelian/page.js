@@ -15,7 +15,7 @@ import AdjustPrintLaporan from "./print/AdjustPrintLaporan";
 import { generateFakturPDF } from "./print/PrintDetailInvoice";
 import FormPembelian from "./components/FormPembelian";
 import FormPelunasan from "./components/FormPelunasan";
-import PembelianDetailDialog from "./components/DetailPage"; // <--- Import Komponen Baru
+import PembelianDetailDialog from "./components/DetailPage";
 
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
 
@@ -45,7 +45,7 @@ export default function PembelianPage() {
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
   const [adjustPrintDialog, setAdjustPrintDialog] = useState(false);
 
-  // --- STATE UNTUK DETAIL PAGE ---
+  // State Untuk Detail Page
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailItems, setDetailItems] = useState([]);
   const [detailPayments, setDetailPayments] = useState([]);
@@ -92,31 +92,25 @@ export default function PembelianPage() {
       });
       setDataList(res.data.data || []);
     } catch (err) { 
-      toastRef.current?.showToast("01", "Gagal mengambil data transaksi"); 
+        toastRef.current?.showToast("01", "Gagal mengambil data transaksi"); 
     } finally { setIsLoading(false); }
   };
 
-  /**
-   * FUNGSI UNTUK MEMBUKA DETAIL (DARI 3 TABEL)
-   * DISINKRONKAN DENGAN ROUTE BACKEND /history/
-   */
+  // 3. Fungsi Buka Detail
   const handleOpenDetail = async (rowData) => {
     setIsLoading(true);
-    setSelectedInvoice(rowData);
     try {
-      // Step A: Cari Alamat Vendor
       const vLengkap = (masterData.vendors || []).find(v => 
         v.VENDOR_ID === rowData.VENDOR_ID || v.NAMA_VENDOR === rowData.NAMA_VENDOR
       );
       
-      // Update selectedInvoice dengan alamat vendor
-      setSelectedInvoice({
+      const updatedInvoice = {
         ...rowData,
         ALAMAT_VENDOR: vLengkap ? vLengkap.ALAMAT_VENDOR : "Alamat tidak ditemukan"
-      });
+      };
+      
+      setSelectedInvoice(updatedInvoice);
 
-      // Step B: Ambil Detail Barang & Histori Pembayaran secara paralel
-      // PERBAIKAN: Menggunakan /history/ sesuai routes.js backend
       const [resDetail, resPay] = await Promise.all([
         axios.get(`${API_URL}/inv-pembelian/detail/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -136,7 +130,6 @@ export default function PembelianPage() {
     }
   };
 
-  // --- Fungsi Lainnya (Save, Delete, Print) ---
   const handleSave = async (payload) => {
     try {
       const res = await axios.post(`${API_URL}/inv-pembelian/full`, payload, {
@@ -191,7 +184,6 @@ export default function PembelianPage() {
       
       let dataHistoriBayar = [];
       try {
-        // PERBAIKAN: Menggunakan /history/ sesuai routes.js backend
         const resPay = await axios.get(`${API_URL}/pembayaran-beli/history/${encodeURIComponent(rowData.NO_INVOICE_BELI)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -260,11 +252,9 @@ export default function PembelianPage() {
 
       <CustomDataTable data={dataList} columns={columns} loading={isLoading} />
 
-      {/* FORM TRANSAKSI & PELUNASAN */}
       <FormPembelian visible={formVisible} onHide={() => setFormVisible(false)} onSave={handleSave} {...masterData} />
       <FormPelunasan visible={lunasVisible} onHide={() => setLunasVisible(false)} invoiceData={selectedInvoice} onSave={handleSavePelunasan} />
 
-      {/* DIALOG DETAIL (YANG BARU) */}
       <PembelianDetailDialog 
         visible={detailVisible} 
         onHide={() => setDetailVisible(false)}
@@ -275,18 +265,28 @@ export default function PembelianPage() {
         onPrint={() => handlePrintDetail(selectedInvoice)}
       />
 
-      {/* PREVIEW PDF */}
       <Dialog visible={jsPdfPreviewOpen} onHide={() => setJsPdfPreviewOpen(false)} maximizable modal style={{ width: '85vw' }} header={`Preview: ${fileName}`}>
         {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />}
       </Dialog>
 
       <AdjustPrintLaporan 
-        adjustDialog={adjustPrintDialog} setAdjustDialog={setAdjustPrintDialog} 
-        dataToPrint={dataList} setPdfUrl={setPdfUrl} setFileName={setFileName} 
-        setJsPdfPreviewOpen={setJsPdfPreviewOpen} judulLaporan="LAPORAN DATA PEMBELIAN"
+        adjustDialog={adjustPrintDialog} 
+        setAdjustDialog={setAdjustPrintDialog} 
+        dataToPrint={dataList.map(item => {
+          const vLengkap = (masterData.vendors || []).find(v => v.VENDOR_ID === item.VENDOR_ID);
+          return {
+            ...item,
+            ALAMAT_VENDOR: vLengkap ? vLengkap.ALAMAT_VENDOR : "-"
+          };
+        })}
+        setPdfUrl={setPdfUrl} 
+        setFileName={setFileName} 
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen} 
+        judulLaporan="LAPORAN DATA PEMBELIAN"
         columnOptions={[
           { name: "No. Invoice", value: "NO_INVOICE_BELI" },
           { name: "Vendor", value: "NAMA_VENDOR" },
+          { name: "Alamat Vendor", value: "ALAMAT_VENDOR" },
           { name: "Status", value: "STATUS_BAYAR" },
           { name: "Sisa Tagihan", value: "SISA_TAGIHAN" }
         ]}
