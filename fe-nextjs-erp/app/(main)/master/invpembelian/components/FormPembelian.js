@@ -16,11 +16,11 @@ const FormPembelian = ({
   visible,
   onHide,
   onSave,
-  vendors,
-  barangs,
-  gudangs,
-  raks,
-  jenisBarangs,
+  vendors = [],
+  barangs = [],
+  gudangs = [],
+  raks = [],
+  jenisBarangs = [],
 }) => {
   const [header, setHeader] = useState({
     NO_INVOICE_BELI: "",
@@ -36,9 +36,7 @@ const FormPembelian = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Batas Maksimal Angka (Mencegah Error Out of Range MySQL)
-  const MAX_LIMIT = 999999999999; 
-
+  // Reset Form saat modal dibuka
   useEffect(() => {
     if (visible) {
       setHeader({
@@ -55,6 +53,7 @@ const FormPembelian = ({
     }
   }, [visible]);
 
+  // Kalkulasi Otomatis Total & Sisa Tagihan
   useEffect(() => {
     const total = items.reduce((sum, item) => sum + (item.SUBTOTAL || 0), 0);
     const bayar = header.JUMLAH_BAYAR || 0;
@@ -74,11 +73,21 @@ const FormPembelian = ({
     }));
   }, [items, header.JUMLAH_BAYAR]);
 
+  // Fungsi pembersihan tanggal untuk MySQL (YYYY-MM-DD)
+  const formatDateForMySQL = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const addRow = () => {
     setItems([
       ...items,
       {
-        KODE_JENIS: "",
+        JENIS_ID: null, 
         BARANG_KODE: "",
         QTY_BELI: 1,
         HARGA_SATUAN: 0,
@@ -91,15 +100,11 @@ const FormPembelian = ({
     ]);
   };
 
-  const removeRow = (index) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
   const onCellEdit = (index, field, value) => {
     let newItems = [...items];
     newItems[index][field] = value;
 
-    if (field === "KODE_JENIS") newItems[index].BARANG_KODE = "";
+    if (field === "JENIS_ID") newItems[index].BARANG_KODE = "";
     if (field === "KODE_GUDANG") newItems[index].KODE_RAK = "";
 
     if (field === "QTY_BELI" || field === "HARGA_SATUAN") {
@@ -112,15 +117,12 @@ const FormPembelian = ({
     let err = {};
     if (!header.NO_INVOICE_BELI) err.NO_INVOICE_BELI = "No. Invoice wajib diisi";
     if (!header.VENDOR_ID) err.VENDOR_ID = "Vendor wajib dipilih";
-    if (items.length === 0) err.items = "Minimal harus ada 1 barang";
+    if (items.length === 0) err.items = "Minimal masukkan 1 barang";
     
-    // Validasi Limit Angka
-    if (header.TOTAL_BAYAR > MAX_LIMIT) err.items = "Total transaksi terlalu besar (Limit Triliun)";
-
     items.forEach((item, i) => {
-      if (!item.KODE_JENIS) err[`jenis_${i}`] = "Jenis kosong";
-      if (!item.BARANG_KODE) err[`item_${i}`] = "Barang kosong";
-      if (!item.KODE_GUDANG) err[`gudang_${i}`] = "Gudang kosong";
+      if (!item.JENIS_ID) err[`jenis_${i}`] = "Jenis Kosong";
+      if (!item.BARANG_KODE) err[`item_${i}`] = "Barang Kosong";
+      if (!item.KODE_GUDANG) err[`gudang_${i}`] = "Lokasi Kosong";
     });
 
     setErrors(err);
@@ -134,25 +136,24 @@ const FormPembelian = ({
       const payload = {
         header: {
           ...header,
-          TGL_INVOICE: header.TGL_INVOICE.toISOString().split("T")[0],
-          // Memastikan data numerik bersih
+          TGL_INVOICE: formatDateForMySQL(header.TGL_INVOICE),
           TOTAL_BAYAR: Number(header.TOTAL_BAYAR),
-          JUMLAH_BAYAR: Number(header.JUMLAH_BAYAR || 0),
-          SISA_TAGIHAN: Number(header.SISA_TAGIHAN)
+          JUMLAH_BAYAR: Number(header.JUMLAH_BAYAR),
+          SISA_TAGIHAN: Number(header.SISA_TAGIHAN),
         },
         items: items.map((item) => ({
           ...item,
-          TGL_KADALUARSA: item.TGL_KADALUARSA ? item.TGL_KADALUARSA.toISOString().split("T")[0] : null,
+          TGL_KADALUARSA: formatDateForMySQL(item.TGL_KADALUARSA),
           QTY_BELI: Number(item.QTY_BELI),
           HARGA_SATUAN: Number(item.HARGA_SATUAN),
-          SUBTOTAL: Number(item.SUBTOTAL)
+          SUBTOTAL: Number(item.SUBTOTAL),
         })),
       };
-      
-      console.log("Payload Terkirim:", payload);
+
+      console.log("Payload Final:", payload);
       await onSave(payload);
     } catch (err) {
-       console.error("Submit error", err);
+      console.error("Submit Error:", err);
     } finally {
       setLoading(false);
     }
@@ -173,24 +174,23 @@ const FormPembelian = ({
       }
     >
       <div className="p-fluid grid">
+        {/* HEADER SECTION */}
         <div className="field col-12 md:col-3">
-          <label className="font-bold text-gray-700">No. Invoice <span className="text-red-500">*</span></label>
+          <label className="font-bold">No. Invoice <span className="text-red-500">*</span></label>
           <InputText 
             value={header.NO_INVOICE_BELI} 
             onChange={(e) => setHeader({ ...header, NO_INVOICE_BELI: e.target.value.toUpperCase() })} 
-            placeholder="Ketik No. Invoice..." 
             className={errors.NO_INVOICE_BELI ? "p-invalid" : ""}
           />
-          {errors.NO_INVOICE_BELI && <small className="p-error">{errors.NO_INVOICE_BELI}</small>}
         </div>
 
         <div className="field col-12 md:col-3">
-          <label className="font-bold text-gray-700">Tanggal</label>
+          <label className="font-bold">Tanggal</label>
           <Calendar value={header.TGL_INVOICE} onChange={(e) => setHeader({ ...header, TGL_INVOICE: e.value })} showIcon />
         </div>
 
         <div className="field col-12 md:col-6">
-          <label className="font-bold text-gray-700">Vendor <span className="text-red-500">*</span></label>
+          <label className="font-bold">Vendor <span className="text-red-500">*</span></label>
           <Dropdown
             value={header.VENDOR_ID}
             options={vendors}
@@ -203,31 +203,22 @@ const FormPembelian = ({
           />
         </div>
 
+        {/* SUMMARY SECTION */}
         <div className="field col-12 md:col-3">
           <label className="font-bold text-primary">Total Pembelian</label>
-          <InputNumber value={header.TOTAL_BAYAR} readOnly disabled mode="currency" currency="IDR" locale="id-ID" inputClassName="text-xl font-bold text-primary" />
+          <InputNumber value={header.TOTAL_BAYAR} mode="currency" currency="IDR" locale="id-ID" disabled />
         </div>
         <div className="field col-12 md:col-3">
-          <label className="font-bold text-green-600">Jumlah Bayar Sekarang (DP)</label>
-          <InputNumber 
-            value={header.JUMLAH_BAYAR} 
-            onValueChange={(e) => setHeader({ ...header, JUMLAH_BAYAR: e.value })} 
-            mode="currency" currency="IDR" locale="id-ID" 
-            min={0}
-            max={MAX_LIMIT} // Limit Input
-            inputClassName="text-xl font-bold text-green-600"
-          />
+          <label className="font-bold text-green-600">Bayar Sekarang (DP)</label>
+          <InputNumber value={header.JUMLAH_BAYAR} onValueChange={(e) => setHeader({ ...header, JUMLAH_BAYAR: e.value })} mode="currency" currency="IDR" locale="id-ID" min={0} />
         </div>
         <div className="field col-12 md:col-3">
-          <label className="font-bold text-red-500">Sisa Tagihan (Hutang)</label>
-          <InputNumber value={header.SISA_TAGIHAN} readOnly disabled mode="currency" currency="IDR" locale="id-ID" inputClassName="text-xl font-bold text-red-500" />
+          <label className="font-bold text-red-500">Sisa Hutang</label>
+          <InputNumber value={header.SISA_TAGIHAN} mode="currency" currency="IDR" locale="id-ID" disabled />
         </div>
         <div className="field col-12 md:col-3">
-          <label className="font-bold text-gray-700">Status Bayar</label>
-          <div className={`p-3 border-round text-center font-bold shadow-sm ${
-            header.STATUS_BAYAR === 'Lunas' ? 'bg-green-100 text-green-700' : 
-            header.STATUS_BAYAR === 'Cicil' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
-          }`}>
+          <label className="font-bold">Status</label>
+          <div className="p-3 border-round text-center font-bold bg-gray-100 text-gray-800 border-1 border-300">
             {header.STATUS_BAYAR.toUpperCase()}
           </div>
         </div>
@@ -240,29 +231,33 @@ const FormPembelian = ({
           <DataTable value={items} responsiveLayout="scroll" size="small" className="p-datatable-gridlines shadow-1">
             <Column header="Jenis" style={{ width: "15%" }} body={(data, options) => (
               <Dropdown
-                value={data.KODE_JENIS}
+                value={data.JENIS_ID}
                 options={jenisBarangs}
                 optionLabel="NAMA_JENIS"
                 optionValue="ID" 
                 placeholder="Jenis"
-                onChange={(e) => onCellEdit(options.rowIndex, "KODE_JENIS", e.value)}
+                onChange={(e) => onCellEdit(options.rowIndex, "JENIS_ID", e.value)}
                 filter
+                className={errors[`jenis_${options.rowIndex}`] ? "p-invalid" : ""}
               />
             )} />
 
-            <Column header="Barang" style={{ width: "20%" }} body={(data, options) => (
-              <Dropdown
-                value={data.BARANG_KODE}
-                options={barangs.filter(b => String(b.JENIS_ID) === String(data.KODE_JENIS))}
-                optionLabel="NAMA_BARANG"
-                optionValue="BARANG_KODE"
-                placeholder="Pilih Barang"
-                disabled={!data.KODE_JENIS}
-                onChange={(e) => onCellEdit(options.rowIndex, "BARANG_KODE", e.value)}
-                filter
-                emptyMessage="Barang tidak ditemukan"
-              />
-            )} />
+            <Column header="Barang" style={{ width: "20%" }} body={(data, options) => {
+              const filteredBarangs = barangs.filter(b => Number(b.JENIS_ID) === Number(data.JENIS_ID));
+              return (
+                <Dropdown
+                  value={data.BARANG_KODE}
+                  options={filteredBarangs}
+                  optionLabel="NAMA_BARANG"
+                  optionValue="BARANG_KODE"
+                  placeholder={data.JENIS_ID ? "Pilih Barang" : "Pilih Jenis..."}
+                  disabled={!data.JENIS_ID}
+                  onChange={(e) => onCellEdit(options.rowIndex, "BARANG_KODE", e.value)}
+                  filter
+                  className={errors[`item_${options.rowIndex}`] ? "p-invalid" : ""}
+                />
+              );
+            }} />
 
             <Column header="Gudang / Rak" style={{ width: "18%" }} body={(data, options) => (
               <div className="flex flex-column gap-1">
@@ -276,7 +271,7 @@ const FormPembelian = ({
                 />
                 <Dropdown
                   value={data.KODE_RAK}
-                  options={raks ? raks.filter((r) => String(r.KODE_GUDANG) === String(data.KODE_GUDANG)) : []}
+                  options={raks.filter(r => String(r.KODE_GUDANG) === String(data.KODE_GUDANG))}
                   optionLabel="NAMA_RAK"
                   optionValue="KODE_RAK"
                   placeholder="Rak"
@@ -298,7 +293,7 @@ const FormPembelian = ({
             )} />
 
             <Column header="Harga" style={{ width: "10%" }} body={(data, options) => (
-              <InputNumber value={data.HARGA_SATUAN} onValueChange={(e) => onCellEdit(options.rowIndex, "HARGA_SATUAN", e.value)} mode="decimal" max={MAX_LIMIT} />
+              <InputNumber value={data.HARGA_SATUAN} onValueChange={(e) => onCellEdit(options.rowIndex, "HARGA_SATUAN", e.value)} mode="decimal" />
             )} />
 
             <Column header="Subtotal" style={{ width: "10%" }} body={(data) => (
@@ -306,7 +301,7 @@ const FormPembelian = ({
             )} />
 
             <Column style={{ width: "4%" }} body={(_, options) => (
-              <Button icon="pi pi-trash" severity="danger" text onClick={() => removeRow(options.rowIndex)} />
+              <Button icon="pi pi-trash" severity="danger" text onClick={() => setItems(items.filter((_, i) => i !== options.rowIndex))} />
             )} />
           </DataTable>
 
