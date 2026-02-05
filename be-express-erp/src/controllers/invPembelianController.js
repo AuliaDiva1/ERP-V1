@@ -1,118 +1,190 @@
 import * as InvPembelianModel from "../models/invPembelianModel.js";
+import * as InvPembelianDModel from "../models/invPembelianDModel.js";
+import * as PembayaranBeliModel from "../models/pembayaranBeliModel.js"; // <--- TAMBAHKAN IMPORT INI
 
 /**
- * Mendapatkan semua data invoice pembelian
+ * ==========================================================
+ * Bagian 1: HEADER (Invoice Utama)
+ * ==========================================================
  */
+
 export const getAllInvPembelian = async (req, res) => {
   try {
     const data = await InvPembelianModel.getAllInvPembelian();
-    res.status(200).json({
-      status: "00",
-      message: "Berhasil mengambil semua data invoice",
-      data
-    });
+    res.status(200).json({ status: "00", message: "Success", data });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
 };
 
-/**
- * Mendapatkan satu invoice berdasarkan ID
- */
 export const getInvPembelianById = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = await InvPembelianModel.getInvPembelianById(id);
-    
-    if (!data) {
-      return res.status(404).json({ status: "01", message: "Invoice tidak ditemukan" });
-    }
-
+    const decodedId = decodeURIComponent(id);
+    const data = await InvPembelianModel.getInvPembelianById(decodedId);
+    if (!data) return res.status(404).json({ status: "01", message: "Tidak ditemukan" });
     res.status(200).json({ status: "00", data });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
 };
 
-/**
- * Membuat invoice pembelian baru
- */
 export const createInvPembelian = async (req, res) => {
   try {
-    const { NO_INVOICE_BELI, VENDOR_ID, TGL_INVOICE, TOTAL_BAYAR } = req.body;
-
-    // 1. Validasi input (Ganti KODE_VENDOR jadi VENDOR_ID)
-    if (!NO_INVOICE_BELI || !VENDOR_ID || !TGL_INVOICE || !TOTAL_BAYAR) {
-      return res.status(400).json({
-        status: "01",
-        message: "Data wajib diisi: NO_INVOICE_BELI, VENDOR_ID, TGL_INVOICE, TOTAL_BAYAR"
-      });
+    const { NO_INVOICE_BELI } = req.body;
+    
+    if (!NO_INVOICE_BELI) {
+      return res.status(400).json({ status: "01", message: "Nomor Invoice wajib diisi manual!" });
     }
 
-    // 2. Cek apakah nomor invoice sudah pernah terdaftar
-    const checkDuplicate = await InvPembelianModel.getInvPembelianByNo(NO_INVOICE_BELI);
-    if (checkDuplicate) {
-      return res.status(400).json({
-        status: "01",
-        message: `Nomor Invoice ${NO_INVOICE_BELI} sudah ada di sistem!`
-      });
-    }
+    const check = await InvPembelianModel.getInvPembelianByNo(NO_INVOICE_BELI);
+    if (check) return res.status(400).json({ status: "01", message: "Nomor Invoice sudah terdaftar di sistem" });
 
-    // 3. Panggil Model
     const result = await InvPembelianModel.createInvPembelian(req.body);
-
-    res.status(201).json({
-      status: "00",
-      message: "Invoice pembelian berhasil dibuat",
-      data: result
-    });
+    res.status(201).json({ status: "00", message: "Header Berhasil Dibuat", data: result });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
 };
 
-/**
- * Mengupdate data invoice
- */
 export const updateInvPembelian = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Cek apakah data ada
-    const exist = await InvPembelianModel.getInvPembelianById(id);
-    if (!exist) {
-      return res.status(404).json({ status: "01", message: "Data tidak ditemukan" });
-    }
+    const decodedId = decodeURIComponent(id);
+    await InvPembelianModel.updateInvPembelian(decodedId, req.body);
+    res.status(200).json({ status: "00", message: "Update Berhasil" });
+  } catch (err) {
+    res.status(500).json({ status: "99", error: err.message });
+  }
+};
 
-    const result = await InvPembelianModel.updateInvPembelian(id, req.body);
-    res.status(200).json({
-      status: "00",
-      message: "Invoice berhasil diupdate",
-      data: result
-    });
+export const deleteInvPembelian = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const decodedId = decodeURIComponent(id);
+    
+    const exist = await InvPembelianModel.getInvPembelianByNo(decodedId);
+    if (!exist) return res.status(404).json({ status: "01", message: "Invoice tdk ditemukan" });
+
+    await InvPembelianModel.deleteFullPurchase(decodedId);
+    
+    res.status(200).json({ status: "00", message: "Invoice & Relasi Berhasil Dihapus" });
+  } catch (err) {
+    res.status(500).json({ status: "99", error: "Gagal Hapus: " + err.message });
+  }
+};
+
+/**
+ * ==========================================================
+ * Bagian 2: DETAIL (Barang & Stok)
+ * ==========================================================
+ */
+
+export const getDetailByInvoice = async (req, res) => {
+  try {
+    const { noInvoice } = req.params;
+    const decodedNo = decodeURIComponent(noInvoice);
+    const data = await InvPembelianDModel.getDetailByInvoice(decodedNo);
+    res.status(200).json({ status: "00", data });
+  } catch (err) {
+    res.status(500).json({ status: "99", error: err.message });
+  }
+};
+
+export const addItemsToInvoice = async (req, res) => {
+  try {
+    const { items } = req.body;
+    await InvPembelianDModel.createInvPembelianD(items);
+    res.status(201).json({ status: "00", message: "Item ditambahkan" });
+  } catch (err) {
+    res.status(500).json({ status: "99", error: err.message });
+  }
+};
+
+export const deleteDetailItem = async (req, res) => {
+  try {
+    const { idDetail } = req.params;
+    await InvPembelianDModel.deleteInvPembelianD(idDetail);
+    res.status(200).json({ status: "00", message: "Item terhapus" });
   } catch (err) {
     res.status(500).json({ status: "99", error: err.message });
   }
 };
 
 /**
- * Menghapus invoice
+ * ==========================================================
+ * Bagian 3: SUPER CREATE (Header + Items + Payment dalam satu transaksi)
+ * ==========================================================
  */
-export const deleteInvPembelian = async (req, res) => {
+export const createFullPurchase = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    const exist = await InvPembelianModel.getInvPembelianById(id);
-    if (!exist) {
-      return res.status(404).json({ status: "01", message: "Data tidak ditemukan" });
+    const { header, items } = req.body;
+
+    if (!header.NO_INVOICE_BELI) {
+      return res.status(400).json({ status: "01", message: "Nomor Invoice (Header) wajib diisi!" });
     }
 
-    await InvPembelianModel.deleteInvPembelian(id);
-    res.status(200).json({
-      status: "00",
-      message: "Invoice berhasil dihapus"
-    });
+    if (!items || items.length === 0) {
+      return res.status(400).json({ status: "01", message: "Minimal harus ada 1 barang dalam invoice" });
+    }
+
+    const checkDuplicate = await InvPembelianModel.getInvPembelianByNo(header.NO_INVOICE_BELI);
+    if (checkDuplicate) {
+      return res.status(400).json({ status: "01", message: `Nomor Invoice ${header.NO_INVOICE_BELI} sudah pernah diinput!` });
+    }
+
+    // 1. MAPPING DATA HEADER
+    const finalHeader = {
+      NO_INVOICE_BELI: header.NO_INVOICE_BELI,
+      VENDOR_ID: header.VENDOR_ID,
+      TGL_INVOICE: header.TGL_INVOICE,
+      TOTAL_BAYAR: parseFloat(header.TOTAL_BAYAR) || 0,
+      SISA_TAGIHAN: parseFloat(header.SISA_TAGIHAN) || 0,
+      STATUS_BAYAR: header.STATUS_BAYAR || "Belum Lunas",
+    };
+
+    // 2. MAPPING DATA ITEMS
+    const finalItems = items.map((item) => ({
+      NO_INVOICE_BELI: header.NO_INVOICE_BELI,
+      BARANG_KODE: item.BARANG_KODE,
+      QTY_BELI: parseFloat(item.QTY_BELI) || 0,
+      HARGA_SATUAN: parseFloat(item.HARGA_SATUAN) || 0,
+      SUBTOTAL: parseFloat(item.SUBTOTAL) || 0,
+      KODE_GUDANG: item.KODE_GUDANG,
+      KODE_RAK: item.KODE_RAK,
+      BATCH_NO: item.BATCH_NO || "",
+      TGL_KADALUARSA: item.TGL_KADALUARSA || null
+    }));
+
+    // 3. LOGIKA PEMBAYARAN (DP)
+    let paymentData = null;
+    const nominalBayar = parseFloat(header.JUMLAH_BAYAR) || 0;
+    
+    if (nominalBayar > 0) {
+      paymentData = {
+        NO_KWITANSI: `KW-${Date.now()}`, // Generate kwitansi otomatis
+        NO_INVOICE_BELI: header.NO_INVOICE_BELI,
+        TGL_BAYAR: header.TGL_INVOICE, // Default tanggal invoice
+        NOMINAL_BAYAR: nominalBayar,
+        KETERANGAN: "Uang Muka (DP) Transaksi Baru"
+      };
+    }
+
+    // 4. SIMPAN SEMUA (Update Model Anda untuk menerima data payment ini)
+    // Jika model saveFullPurchase belum support parameter ke-3, 
+    // Anda bisa memanggil PembayaranBeliModel secara manual di sini.
+    await InvPembelianModel.saveFullPurchase(finalHeader, finalItems);
+    
+    if (paymentData) {
+      await PembayaranBeliModel.createPembayaran(paymentData);
+    }
+
+    res.status(201).json({ status: "00", message: "Transaksi & Pembayaran Berhasil Disimpan!" });
   } catch (err) {
-    res.status(500).json({ status: "99", error: err.message });
+    console.error("DEBUG ERROR API:", err);
+    res.status(500).json({ 
+      status: "99", 
+      message: "Gagal Simpan: " + (err.sqlMessage || err.message) 
+    });
   }
 };

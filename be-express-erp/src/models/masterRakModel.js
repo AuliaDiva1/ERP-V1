@@ -1,17 +1,28 @@
 import { db } from "../core/config/knex.js";
 
 /**
- * Get all rak
+ * Get all rak - DENGAN JOIN GUDANG
  **/
 export const getAllRak = async () => {
-  return db("MASTER_RAK").select("*").orderBy("KODE_RAK", "asc");
+  return db("MASTER_RAK")
+    .leftJoin("MASTER_GUDANG", "MASTER_RAK.KODE_GUDANG", "MASTER_GUDANG.KODE_GUDANG")
+    .select(
+      "MASTER_RAK.*",                // Ambil semua kolom dari tabel Rak
+      "MASTER_GUDANG.NAMA_GUDANG",   // Ambil Nama Gudang
+      "MASTER_GUDANG.ALAMAT"         // Ambil Alamat Gudang (Opsional)
+    )
+    .orderBy("MASTER_RAK.KODE_RAK", "asc");
 };
 
 /**
- * Get rak by ID
+ * Get rak by ID - DENGAN JOIN GUDANG
  **/
 export const getRakById = async (ID_RAK) => {
-  return db("MASTER_RAK").where({ ID_RAK }).first();
+  return db("MASTER_RAK")
+    .leftJoin("MASTER_GUDANG", "MASTER_RAK.KODE_GUDANG", "MASTER_GUDANG.KODE_GUDANG")
+    .select("MASTER_RAK.*", "MASTER_GUDANG.NAMA_GUDANG")
+    .where("MASTER_RAK.ID_RAK", ID_RAK)
+    .first();
 };
 
 /**
@@ -25,7 +36,11 @@ export const getRakByKode = async (kode) => {
  * Get all rak based on a specific gudang
  **/
 export const getRakByGudang = async (kodeGudang) => {
-  return db("MASTER_RAK").where({ KODE_GUDANG: kodeGudang }).orderBy("KODE_RAK", "asc");
+  return db("MASTER_RAK")
+    .leftJoin("MASTER_GUDANG", "MASTER_RAK.KODE_GUDANG", "MASTER_GUDANG.KODE_GUDANG")
+    .select("MASTER_RAK.*", "MASTER_GUDANG.NAMA_GUDANG")
+    .where("MASTER_RAK.KODE_GUDANG", kodeGudang)
+    .orderBy("MASTER_RAK.KODE_RAK", "asc");
 };
 
 /**
@@ -46,15 +61,17 @@ export const createRak = async ({
     throw new Error("KODE_GUDANG tidak terdaftar");
   }
 
-  const [ID_RAK] = await db("MASTER_RAK").insert({
+  // Gunakan transaction atau insert biasa
+  const [insertedId] = await db("MASTER_RAK").insert({
     KODE_GUDANG,
     KODE_RAK,
     NAMA_RAK: NAMA_RAK ?? null,
-    CREATED_AT: db.fn.now(),
-    UPDATED_AT: db.fn.now(),
+    created_at: db.fn.now(),
+    updated_at: db.fn.now(),
   });
 
-  return db("MASTER_RAK").where({ ID_RAK }).first();
+  // Ambil data yang baru dibuat menggunakan ID yang diinsert
+  return getRakById(insertedId);
 };
 
 /**
@@ -74,7 +91,7 @@ export const updateRak = async (
 
   await db("MASTER_RAK").where({ ID_RAK }).update(dataToUpdate);
 
-  return db("MASTER_RAK").where({ ID_RAK }).first();
+  return getRakById(ID_RAK);
 };
 
 /**
