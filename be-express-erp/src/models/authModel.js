@@ -1,4 +1,5 @@
 import { db } from "../core/config/knex.js";
+import { hashPassword } from "../utils/hash.js"; // ✅ TAMBAHKAN INI
 
 /**
  * COUNT SUPER ADMIN
@@ -19,6 +20,36 @@ export const getUserProfileById = async (userId) => {
     .select("id", "name", "email", "role", "created_at", "updated_at")
     .first();
 
+  if (!user) return null;
+
+  // ✅ TAMBAHAN: Jika HR, PRODUKSI, GUDANG, KEUANGAN
+  if (["HR", "PRODUKSI", "GUDANG", "KEUANGAN"].includes(user.role)) {
+    const karyawanData = await db("master_karyawan")
+      .where("EMAIL", user.email)
+      .select(
+        "KARYAWAN_ID",
+        "EMAIL",
+        "NIK",
+        "NAMA",
+        "GENDER",
+        "TEMPAT_LAHIR",
+        "TGL_LAHIR",
+        "ALAMAT",
+        "NO_TELP",
+        "DEPARTEMEN",
+        "JABATAN",
+        "TANGGAL_MASUK",
+        "STATUS_KARYAWAN",
+        "STATUS_AKTIF",
+        "SHIFT",
+        "PENDIDIKAN_TERAKHIR",
+        "FOTO"
+      )
+      .first();
+
+    return { ...user, karyawan: karyawanData };
+  }
+
   return user;
 };
 
@@ -29,5 +60,58 @@ export const blacklistToken = async (token, expiredAt) => {
   return await db("blacklist_tokens").insert({
     token,
     expired_at: expiredAt,
+  });
+};
+
+/**
+ * CHECK EMAIL EXISTS
+ */
+export const checkEmailExists = async (email) => {
+  return await db("users").where({ email }).first();
+};
+
+/**
+ * CHECK NIK EXISTS
+ */
+export const checkNikExists = async (nik) => {
+  return await db("master_karyawan").where({ NIK: nik }).first();
+};
+
+/**
+ * CREATE KARYAWAN
+ */
+export const createKaryawan = async (karyawanData, userData) => {
+  const hashedPassword = await hashPassword(userData.password);
+
+  return await db.transaction(async (trx) => {
+    // 1. Insert ke users
+    const [userId] = await trx("users").insert({
+      name: userData.name,
+      email: userData.email,
+      password: hashedPassword,
+      role: userData.role, // HR, PRODUKSI, GUDANG, KEUANGAN
+    });
+
+    // 2. Insert ke master_karyawan
+    const [karyawanId] = await trx("master_karyawan").insert({
+      EMAIL: karyawanData.EMAIL,
+      NIK: karyawanData.NIK,
+      NAMA: karyawanData.NAMA,
+      GENDER: karyawanData.GENDER,
+      TEMPAT_LAHIR: karyawanData.TEMPAT_LAHIR,
+      TGL_LAHIR: karyawanData.TGL_LAHIR,
+      ALAMAT: karyawanData.ALAMAT,
+      NO_TELP: karyawanData.NO_TELP,
+      DEPARTEMEN: karyawanData.DEPARTEMEN,
+      JABATAN: karyawanData.JABATAN,
+      TANGGAL_MASUK: karyawanData.TANGGAL_MASUK,
+      STATUS_KARYAWAN: karyawanData.STATUS_KARYAWAN,
+      STATUS_AKTIF: karyawanData.STATUS_AKTIF,
+      SHIFT: karyawanData.SHIFT,
+      PENDIDIKAN_TERAKHIR: karyawanData.PENDIDIKAN_TERAKHIR,
+      FOTO: karyawanData.FOTO,
+    });
+
+    return { userId, karyawanId };
   });
 };

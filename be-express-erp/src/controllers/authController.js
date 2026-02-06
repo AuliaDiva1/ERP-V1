@@ -4,8 +4,15 @@ import {
   countSuperAdmin,
   getUserProfileById,
   blacklistToken,
+  checkEmailExists,  // ✅ TAMBAHKAN INI
+  checkNikExists,    // ✅ TAMBAHKAN INI
+  createKaryawan,    // ✅ TAMBAHKAN INI
 } from "../models/authModel.js";
-import { registerSchema, loginSchema } from "../schemas/authSchema.js";
+import { 
+  registerSchema, 
+  loginSchema,
+  registerKaryawanSchema, // ✅ TAMBAHKAN INI
+} from "../schemas/authSchema.js";
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
 import { datetime, status } from "../utils/general.js";
@@ -249,6 +256,101 @@ export const logout = async (req, res) => {
     return res.status(500).json({
       status: status.GAGAL,
       message: `Terjadi kesalahan server: ${error.message}`,
+      datetime: datetime(),
+    });
+  }
+};
+
+/**
+ * REGISTER KARYAWAN
+ */
+export const registerKaryawan = async (req, res) => {
+  try {
+    const body = req.body;
+    const file = req.file;
+
+    // Validasi
+    const validation = registerKaryawanSchema.safeParse(body);
+    if (!validation.success) {
+      return res.status(400).json({
+        status: status.BAD_REQUEST,
+        message: "Validasi gagal",
+        datetime: datetime(),
+        errors: validation.error.errors.map((err) => ({
+          field: err.path[0],
+          message: err.message,
+        })),
+      });
+    }
+
+    const parsed = validation.data;
+    const fotoPath = file ? `/uploads/foto_karyawan/${file.filename}` : null;
+
+    // Cek duplikasi email
+    const existingEmail = await checkEmailExists(parsed.email);
+    if (existingEmail) {
+      return res.status(400).json({
+        status: status.BAD_REQUEST,
+        message: "Email sudah terdaftar",
+        datetime: datetime(),
+      });
+    }
+
+    // Cek duplikasi NIK
+    const existingNik = await checkNikExists(parsed.nik);
+    if (existingNik) {
+      return res.status(400).json({
+        status: status.BAD_REQUEST,
+        message: "NIK sudah terdaftar",
+        datetime: datetime(),
+      });
+    }
+
+    // Gunakan model
+    const { userId, karyawanId } = await createKaryawan(
+      {
+        EMAIL: parsed.email,
+        NIK: parsed.nik,
+        NAMA: parsed.nama,
+        GENDER: parsed.gender,
+        TEMPAT_LAHIR: parsed.tempat_lahir || null,
+        TGL_LAHIR: parsed.tgl_lahir || null,
+        ALAMAT: parsed.alamat || null,
+        NO_TELP: parsed.no_telp || null,
+        DEPARTEMEN: parsed.departemen,
+        JABATAN: parsed.jabatan,
+        TANGGAL_MASUK: parsed.tanggal_masuk || new Date(),
+        STATUS_KARYAWAN: parsed.status_karyawan || 'Kontrak',
+        STATUS_AKTIF: 'Aktif',
+        SHIFT: parsed.shift || null,
+        PENDIDIKAN_TERAKHIR: parsed.pendidikan_terakhir || null,
+        FOTO: fotoPath,
+      },
+      {
+        name: parsed.nama,
+        email: parsed.email,
+        password: parsed.password,
+        role: parsed.role,
+      }
+    );
+
+    return res.status(201).json({
+      status: status.SUKSES,
+      message: "Registrasi karyawan berhasil",
+      datetime: datetime(),
+      karyawan_id: karyawanId,
+      user: {
+        id: userId,
+        name: parsed.nama,
+        email: parsed.email,
+        role: parsed.role,
+      },
+    });
+  } catch (err) {
+    console.error("Error registerKaryawan:", err);
+    return res.status(500).json({
+      status: status.GAGAL,
+      message: `Terjadi kesalahan server: ${err.message}`,
       datetime: datetime(),
     });
   }
