@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -11,6 +11,7 @@ import { Steps } from 'primereact/steps';
 import { MenuItem } from 'primereact/menuitem';
 import axios from 'axios';
 import ToastNotifier from '../../../../components/ToastNotifier';
+import { RegisterPageSkeleton } from '../../../../components/SkeletonLoader'; // ✅ IMPORT
 
 type ToastNotifierHandle = {
   showToast: (status: string, message?: string) => void;
@@ -22,15 +23,15 @@ const RegisterKaryawanPage = () => {
     const [loading, setLoading] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     
+    // ✅ STATE UNTUK SKELETON
+    const [isPageLoading, setIsPageLoading] = useState(true);
+    
     // State Form
     const [formData, setFormData] = useState({
-        // Step 1: Akun
         email: '',
         password: '',
         confirmPassword: '',
         role: 'HR',
-        
-        // Step 2: Data Pribadi
         nik: '',
         nama: '',
         gender: 'L',
@@ -38,9 +39,7 @@ const RegisterKaryawanPage = () => {
         tgl_lahir: null as Date | null,
         alamat: '',
         no_telp: '',
-        
-        // Step 3: Data Pekerjaan
-        departemen: '',
+        departemen: 'HR', // ✅ Default sesuai role
         jabatan: '',
         tanggal_masuk: new Date(),
         status_karyawan: 'Kontrak',
@@ -49,6 +48,16 @@ const RegisterKaryawanPage = () => {
     });
 
     const [foto, setFoto] = useState<File | null>(null);
+
+    // ✅ EFFECT UNTUK LOADING
+    useEffect(() => {
+        // Simulasi loading untuk smooth transition
+        const timer = setTimeout(() => {
+            setIsPageLoading(false);
+        }, 500); // 500ms loading
+
+        return () => clearTimeout(timer);
+    }, []);
 
     // Steps Configuration
     const steps: MenuItem[] = [
@@ -71,7 +80,6 @@ const RegisterKaryawanPage = () => {
         { label: 'Perempuan', value: 'P' }
     ];
 
-    // ✅ DEPARTEMEN OPTIONS
     const departemenOptions = [
         { label: 'Human Resource (HR)', value: 'HR' },
         { label: 'Produksi', value: 'PRODUKSI' },
@@ -79,7 +87,6 @@ const RegisterKaryawanPage = () => {
         { label: 'Keuangan & Accounting', value: 'KEUANGAN' }
     ];
 
-    // ✅ JABATAN OPTIONS
     const jabatanOptions = [
         { label: 'Staff', value: 'Staff' },
         { label: 'Operator', value: 'Operator' },
@@ -129,10 +136,9 @@ const RegisterKaryawanPage = () => {
         });
     };
 
-    // Validasi per step
     const validateStep = (step: number): boolean => {
         switch (step) {
-            case 0: // Akun Login
+            case 0:
                 if (!formData.email || !formData.password || !formData.confirmPassword) {
                     toastRef.current?.showToast('01', 'Semua field wajib diisi');
                     return false;
@@ -147,14 +153,14 @@ const RegisterKaryawanPage = () => {
                 }
                 return true;
 
-            case 1: // Data Pribadi
+            case 1:
                 if (!formData.nik || !formData.nama || !formData.gender) {
                     toastRef.current?.showToast('01', 'NIK, Nama, dan Gender wajib diisi');
                     return false;
                 }
                 return true;
 
-            case 2: // Data Pekerjaan
+            case 2:
                 if (!formData.departemen || !formData.jabatan) {
                     toastRef.current?.showToast('01', 'Departemen dan Jabatan wajib diisi');
                     return false;
@@ -184,15 +190,17 @@ const RegisterKaryawanPage = () => {
         try {
             const data = new FormData();
             
-            // Append semua field
             Object.keys(formData).forEach(key => {
                 const value = (formData as any)[key];
+                
+                if (key === 'confirmPassword') return;
+                
                 if (value instanceof Date) {
                     const year = value.getFullYear();
                     const month = String(value.getMonth() + 1).padStart(2, '0');
                     const day = String(value.getDate()).padStart(2, '0');
                     data.append(key, `${year}-${month}-${day}`);
-                } else if (value !== null && value !== undefined && key !== 'confirmPassword') {
+                } else if (value !== null && value !== undefined && value !== '') {
                     data.append(key, value);
                 }
             });
@@ -212,6 +220,7 @@ const RegisterKaryawanPage = () => {
                 setTimeout(() => router.push('/auth/login'), 2000);
             }
         } catch (err: any) {
+            console.error('Error:', err.response?.data);
             const msg = err.response?.data?.message || 'Gagal mendaftar';
             toastRef.current?.showToast('01', msg);
         } finally {
@@ -219,10 +228,9 @@ const RegisterKaryawanPage = () => {
         }
     };
 
-    // Render Step Content
     const renderStepContent = () => {
         switch (activeStep) {
-            case 0: // Akun Login
+            case 0:
                 return (
                     <div className="p-fluid">
                         <div className="mb-4">
@@ -298,7 +306,7 @@ const RegisterKaryawanPage = () => {
                     </div>
                 );
 
-            case 1: // Data Pribadi
+            case 1:
                 return (
                     <div className="p-fluid">
                         <div className="grid">
@@ -392,7 +400,7 @@ const RegisterKaryawanPage = () => {
                     </div>
                 );
 
-            case 2: // Data Pekerjaan
+            case 2:
                 return (
                     <div className="p-fluid">
                         <div className="grid">
@@ -407,8 +415,7 @@ const RegisterKaryawanPage = () => {
                                     onChange={(e) => handleDropdownChange('departemen', e.value)}
                                     placeholder="Pilih Departemen"
                                     filter
-                                    // Tambahkan baris di bawah ini untuk mengunci field
-                                    disabled={true} 
+                                    disabled={true}
                                 />
                                 <small className="text-500">
                                     Departemen terkunci otomatis sesuai Role Akses yang dipilih di Step 1.
@@ -485,7 +492,7 @@ const RegisterKaryawanPage = () => {
                     </div>
                 );
 
-            case 3: // Foto & Konfirmasi
+            case 3:
                 return (
                     <div className="p-fluid">
                         <div className="mb-5">
@@ -553,17 +560,26 @@ const RegisterKaryawanPage = () => {
         }
     };
 
+    // ✅ TAMPILKAN SKELETON SAAT LOADING
+    if (isPageLoading) {
+        return <RegisterPageSkeleton />;
+    }
+
+    // ✅ RENDER NORMAL PAGE
     return (
         <>
             <ToastNotifier ref={toastRef} />
             
-            <div className="min-h-screen flex align-items-center justify-content-center p-4"
-                 style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                
+            <div 
+                className="min-h-screen flex align-items-center justify-content-center p-4"
+                style={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    animation: 'fadeIn 0.5s ease-in'
+                }}
+            >
                 <div className="surface-card shadow-8 border-round-2xl overflow-hidden"
                      style={{ maxWidth: '900px', width: '100%' }}>
                     
-                    {/* Header */}
                     <div className="p-5 border-bottom-1 surface-border"
                          style={{ background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)' }}>
                         <div className="flex align-items-center justify-content-between">
@@ -577,7 +593,6 @@ const RegisterKaryawanPage = () => {
                             </div>
                             <Button
                                 icon="pi pi-times"
-                                // hover:bg-black-alpha-20 akan memberikan efek redup transparan hitam
                                 className="p-button-rounded p-button-text p-button-plain hover:bg-black-alpha-20 hover:text-red-400"
                                 style={{ color: 'white', transition: '0.3s' }}
                                 onClick={() => router.push('/auth/login')}
@@ -585,7 +600,6 @@ const RegisterKaryawanPage = () => {
                         </div>
                     </div>
 
-                    {/* Steps Indicator */}
                     <div className="p-5 border-bottom-1 surface-border">
                         <Steps
                             model={steps}
@@ -595,12 +609,10 @@ const RegisterKaryawanPage = () => {
                         />
                     </div>
 
-                    {/* Content */}
                     <div className="p-6">
                         {renderStepContent()}
                     </div>
 
-                    {/* Footer Navigation */}
                     <div className="p-5 border-top-1 surface-border flex justify-content-between">
                         <Button
                             label="Kembali"
