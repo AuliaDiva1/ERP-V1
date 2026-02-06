@@ -29,7 +29,7 @@ export const loginSchema = z.object({
 
 export const registerKaryawanSchema = z.object({
   email: z.string().email("Email tidak valid"),
-  password: z.string().min(6, "Password minimal 6 karakter"),
+  password: z.string().min(8, "Password minimal 8 karakter"),
   role: z.enum(["HR", "PRODUKSI", "GUDANG", "KEUANGAN"]),
   
   nik: z.string().min(1, "NIK wajib diisi"),
@@ -46,6 +46,6 @@ export const registerKaryawanSchema = z.object({
   tanggal_masuk: z.string().optional(),
   
   status_karyawan: z.enum(["Tetap", "Kontrak", "Magang"]).optional(),
-  shift: z.enum(["Pagi", "Siang", "Malam"]).optional(),
+  shift: z.enum(["Pagi", "Siang", "Malam", ""]).optional(),
   pendidikan_terakhir: z.string().optional(),
 });

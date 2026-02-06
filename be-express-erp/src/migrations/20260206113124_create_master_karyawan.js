@@ -1,18 +1,23 @@
 /**
  * Migration: Master Karyawan
- * Relasi ke users menggunakan EMAIL (konsisten dengan master_siswa & master_guru)
- * Semua role masuk sini: HR, Produksi, Gudang, Finance, dll
- * Superadmin biasanya tidak perlu dimasukkan
+ * Struktur:
+ * - ID: Primary Key auto increment (untuk relasi internal sistem)
+ * - KARYAWAN_ID: Unique code (untuk relasi ke tabel lain, seperti VENDOR_ID)
+ * - EMAIL: Relasi ke users
  * 
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
 export async function up(knex) {
   return knex.schema.createTable("master_karyawan", (table) => {
-    // Primary Key
-    table.bigIncrements("KARYAWAN_ID").primary();
+    // ✅ Primary Key (Auto Increment)
+    table.increments("ID").primary();
 
-    // ✅ Relasi ke tabel users (pakai EMAIL seperti master_siswa & master_guru)
+    // ✅ Kode Karyawan Unik (untuk join ke tabel lain)
+    table.string("KARYAWAN_ID", 20).notNullable().unique();
+    // Format contoh: KRY-0001, KRY-0002, dll
+
+    // ✅ Relasi ke tabel users (pakai EMAIL)
     table.string("EMAIL", 120)
       .notNullable()
       .unique()
@@ -31,9 +36,7 @@ export async function up(knex) {
 
     // Struktur Organisasi
     table.string("DEPARTEMEN", 100).notNullable();
-    // contoh: HR, PRODUKSI, GUDANG, FINANCE
     table.string("JABATAN", 100).notNullable();
-    // contoh: Staff, Operator, Supervisor, Manager
     table.date("TANGGAL_MASUK").nullable();
 
     // Status kerja
@@ -49,9 +52,12 @@ export async function up(knex) {
 
     // Audit
     table.timestamp("created_at").defaultTo(knex.fn.now());
-    table.timestamp("updated_at").defaultTo(knex.fn.now());
+    table.timestamp("updated_at").defaultTo(
+      knex.raw("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+    );
 
     // Index untuk pencarian cepat
+    table.index(["KARYAWAN_ID", "NAMA"]);
     table.index(["DEPARTEMEN", "JABATAN"]);
     table.index("EMAIL");
   });

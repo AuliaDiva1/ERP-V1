@@ -4,14 +4,14 @@ import {
   countSuperAdmin,
   getUserProfileById,
   blacklistToken,
-  checkEmailExists,  // ✅ TAMBAHKAN INI
-  checkNikExists,    // ✅ TAMBAHKAN INI
-  createKaryawan,    // ✅ TAMBAHKAN INI
+  checkEmailExists, 
+  checkNikExists,   
+  createKaryawan,    
 } from "../models/authModel.js";
 import { 
   registerSchema, 
   loginSchema,
-  registerKaryawanSchema, // ✅ TAMBAHKAN INI
+  registerKaryawanSchema, 
 } from "../schemas/authSchema.js";
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
@@ -307,7 +307,7 @@ export const registerKaryawan = async (req, res) => {
     }
 
     // Gunakan model
-    const { userId, karyawanId } = await createKaryawan(
+    const { userId, karyawanId, id } = await createKaryawan(
       {
         EMAIL: parsed.email,
         NIK: parsed.nik,
@@ -338,7 +338,7 @@ export const registerKaryawan = async (req, res) => {
       status: status.SUKSES,
       message: "Registrasi karyawan berhasil",
       datetime: datetime(),
-      karyawan_id: karyawanId,
+      karyawan_id: karyawanId, // ✅ Return KARYAWAN_ID (KRY-0001)
       user: {
         id: userId,
         name: parsed.nama,

@@ -232,7 +232,18 @@ const LoginPage = () => {
                     }}
                   />
                 </form>
-
+                <div className="text-center mt-4">
+                  <span className="text-700 font-medium">
+                    Don't have an account?{' '}
+                  </span>
+                  <a 
+                    href="/auth/register/karyawan" 
+                    className="text-primary font-bold no-underline hover:underline cursor-pointer"
+                    style={{ color: '#764ba2' }}
+                  >
+                    Register here
+                  </a>
+                </div>
                 {/* Footer Text */}
                 <div className="text-center mt-5">
                   <span className="text-600 font-medium text-sm">

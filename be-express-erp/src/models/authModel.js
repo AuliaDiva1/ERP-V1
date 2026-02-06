@@ -1,5 +1,5 @@
 import { db } from "../core/config/knex.js";
-import { hashPassword } from "../utils/hash.js"; // ✅ TAMBAHKAN INI
+import { hashPassword } from "../utils/hash.js";
 
 /**
  * COUNT SUPER ADMIN
@@ -22,12 +22,13 @@ export const getUserProfileById = async (userId) => {
 
   if (!user) return null;
 
-  // ✅ TAMBAHAN: Jika HR, PRODUKSI, GUDANG, KEUANGAN
+  // Jika HR, PRODUKSI, GUDANG, KEUANGAN
   if (["HR", "PRODUKSI", "GUDANG", "KEUANGAN"].includes(user.role)) {
     const karyawanData = await db("master_karyawan")
       .where("EMAIL", user.email)
       .select(
-        "KARYAWAN_ID",
+        "ID",
+        "KARYAWAN_ID", // ✅ TAMBAHKAN INI
         "EMAIL",
         "NIK",
         "NAMA",
@@ -78,22 +79,48 @@ export const checkNikExists = async (nik) => {
 };
 
 /**
+ * ✅ GENERATE KARYAWAN_ID OTOMATIS
+ * Format: KRY-0001, KRY-0002, dst
+ */
+export const generateKaryawanId = async () => {
+  // Ambil karyawan terakhir
+  const lastKaryawan = await db("master_karyawan")
+    .orderBy("ID", "desc")
+    .first();
+
+  if (!lastKaryawan) {
+    return "KRY-0001"; // Karyawan pertama
+  }
+
+  // Ambil nomor dari KARYAWAN_ID terakhir (contoh: KRY-0001 -> 0001)
+  const lastNumber = parseInt(lastKaryawan.KARYAWAN_ID.split("-")[1]);
+  const newNumber = lastNumber + 1;
+
+  // Format dengan padding 0 (4 digit)
+  return `KRY-${String(newNumber).padStart(4, "0")}`;
+};
+
+/**
  * CREATE KARYAWAN
  */
 export const createKaryawan = async (karyawanData, userData) => {
   const hashedPassword = await hashPassword(userData.password);
 
   return await db.transaction(async (trx) => {
-    // 1. Insert ke users
+    // 1. Generate KARYAWAN_ID
+    const karyawanId = await generateKaryawanId();
+
+    // 2. Insert ke users
     const [userId] = await trx("users").insert({
       name: userData.name,
       email: userData.email,
       password: hashedPassword,
-      role: userData.role, // HR, PRODUKSI, GUDANG, KEUANGAN
+      role: userData.role,
     });
 
-    // 2. Insert ke master_karyawan
-    const [karyawanId] = await trx("master_karyawan").insert({
+    // 3. Insert ke master_karyawan
+    const [id] = await trx("master_karyawan").insert({
+      KARYAWAN_ID: karyawanId, // ✅ TAMBAHKAN INI
       EMAIL: karyawanData.EMAIL,
       NIK: karyawanData.NIK,
       NAMA: karyawanData.NAMA,
@@ -112,6 +139,6 @@ export const createKaryawan = async (karyawanData, userData) => {
       FOTO: karyawanData.FOTO,
     });
 
-    return { userId, karyawanId };
+    return { userId, karyawanId, id }; // ✅ Return karyawanId juga
   });
 };
