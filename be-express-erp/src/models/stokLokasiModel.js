@@ -1,6 +1,29 @@
 import { db } from "../core/config/knex.js";
 
 /**
+ * MENDAPATKAN SEMUA STOK (Untuk Tabel & Laporan PDF)
+ * Ditambahkan agar Controller bisa ambil data untuk ditampilkan
+ **/
+export const getCurrentStok = async (filters = {}) => {
+  const query = db("STOK_LOKASI as s")
+    .select(
+      "s.*",
+      "b.NAMA_BARANG",
+      "g.NAMA_GUDANG",
+      "r.NAMA_RAK"
+    )
+    .leftJoin("master_barang as b", "s.BARANG_KODE", "b.BARANG_KODE")
+    .leftJoin("MASTER_GUDANG as g", "s.KODE_GUDANG", "g.KODE_GUDANG")
+    .leftJoin("MASTER_RAK as r", "s.KODE_RAK", "r.KODE_RAK");
+
+  // Filter dinamis jika diperlukan
+  if (filters.KODE_GUDANG) query.where("s.KODE_GUDANG", filters.KODE_GUDANG);
+  if (filters.BARANG_KODE) query.where("s.BARANG_KODE", filters.BARANG_KODE);
+
+  return query.orderBy("s.UPDATED_AT", "desc");
+};
+
+/**
  * Mendapatkan stok spesifik di satu lokasi
  **/
 export const getStokByDetail = async (BARANG_KODE, KODE_GUDANG, KODE_RAK, BATCH_NO) => {

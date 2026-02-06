@@ -18,63 +18,72 @@ const AppMenu = () => {
 
     if (!userRole) return null;
 
-    let model = [];
-
-    // =========================
-    // 1. SUPERADMIN
+    let model = [];// =========================
+    // 1. SUPERADMIN (Versi Buka-Tutup)
     // =========================
     if (userRole === "SUPERADMIN") {
         model = [
             {
-                label: "Dashboard",
+                label: "UTAMA",
                 items: [
-                    { label: "Dashboard Utama", icon: "pi pi-fw pi-home", to: "/superadmin/dashboard" }
+                    { label: "Dashboard Utama", icon: "pi pi-fw pi-home", to: "/superadmin/dashboard" },
+                    { label: "Analitik Bisnis", icon: "pi pi-fw pi-chart-bar", to: "/superadmin/analytics" }
                 ]
             },
             {
-                label: "Manajemen Sistem",
-                icon: "pi pi-fw pi-cog",
+                label: "MANAJEMEN GUDANG",
+                icon: "pi pi-fw pi-building",
                 items: [
                     {
-                        label: "User Management",
-                        icon: "pi pi-fw pi-users",
+                        label: "Master Inventori",
+                        icon: "pi pi-fw pi-box",
                         items: [
-                            { label: "Kelola User", icon: "pi pi-fw pi-user-plus", to: "/master/users" },
-                        ]
-                    },
-                    {
-                        label: "Master Data",
-                        icon: "pi pi-fw pi-database",
-                        items: [
-                            { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
-                            // --- Tambahan Menu Baru ---
-                            { label: "Master Barang", icon: "pi pi-fw pi-briefcase", to: "/master/master_barang" },
+                            { label: "Data Barang", icon: "pi pi-fw pi-circle-off", to: "/master/master_barang" },
                             { label: "Jenis Barang", icon: "pi pi-fw pi-list", to: "/master/jenis_barang" },
                             { label: "Satuan Barang", icon: "pi pi-fw pi-info-circle", to: "/master/satuan_barang" },
-                            // --------------------------
-                            { label: "Master Vendor", icon: "pi pi-fw pi-truck", to: "/master/vendor" },
-                            { label: "Master Gudang", icon: "pi pi-fw pi-calendar", to: "/master/gudang" },
-                            { label: "Master Rak", icon: "pi pi-fw pi-calendar", to: "/master/rak" },
-                             { label: "Invoice Pembelian", icon: "pi pi-fw pi-calendar", to: "/master/invpembelian" },
                         ]
                     },
                     {
-                        label: "Pengaturan",
-                        icon: "pi pi-fw pi-sliders-h",
+                        label: "Lokasi & Penyimpanan",
+                        icon: "pi pi-fw pi-map",
                         items: [
-                            { label: "Informasi Perusahaan", icon: "pi pi-fw pi-info-circle", to: "/settings/company" },
-                            { label: "Backup & Restore", icon: "pi pi-fw pi-cloud-download", to: "/settings/backup" },
-                            { label: "Email & Notifikasi", icon: "pi pi-fw pi-envelope", to: "/settings/notification" }
+                            { label: "Daftar Gudang", icon: "pi pi-fw pi-building", to: "/master/gudang" },
+                            { label: "Daftar Rak", icon: "pi pi-fw pi-th-large", to: "/master/rak" },
+                        ]
+                    },
+                    {
+                        label: "Pergerakan Stok",
+                        icon: "pi pi-fw pi-sync",
+                        items: [
+                            { label: "Stok Lokasi", icon: "pi pi-fw pi-map-marker", to: "/master/stok-lokasi" },
+                            { label: "Barang Masuk (Log)", icon: "pi pi-fw pi-sign-in", to: "/master/tr-barang-masuk" },
                         ]
                     }
                 ]
             },
             {
-                label: "Laporan & Analytics",
-                icon: "pi pi-fw pi-chart-line",
+                label: "TRANSAKSI & KEUANGAN",
+                icon: "pi pi-fw pi-money-bill",
                 items: [
-                    { label: "Dashboard Analytics", icon: "pi pi-fw pi-chart-bar", to: "/superadmin/analytics" },
-                    { label: "Laporan Komprehensif", icon: "pi pi-fw pi-file-pdf", to: "/superadmin/reports" }
+                    { label: "Data Vendor", icon: "pi pi-fw pi-truck", to: "/master/vendor" },
+                    { label: "Invoice Pembelian", icon: "pi pi-fw pi-file-invoice", to: "/master/invpembelian" },
+                ]
+            },
+            {
+                label: "ADMINISTRASI",
+                icon: "pi pi-fw pi-users",
+                items: [
+                    { label: "User Management", icon: "pi pi-fw pi-user-edit", to: "/master/users" },
+                    { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
+                ]
+            },
+            {
+                label: "PENGATURAN",
+                icon: "pi pi-fw pi-cog",
+                items: [
+                    { label: "Informasi Perusahaan", icon: "pi pi-fw pi-info-circle", to: "/settings/company" },
+                    { label: "Backup & Restore", icon: "pi pi-fw pi-cloud-download", to: "/settings/backup" },
+                    { label: "Notifikasi Email", icon: "pi pi-fw pi-envelope", to: "/settings/notification" }
                 ]
             }
         ];

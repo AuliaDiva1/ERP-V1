@@ -104,7 +104,7 @@ const PembelianDetailDialog = ({
             <TabPanel header="Item Barang" leftIcon="pi pi-box mr-2">
               <DataTable value={dataDetail} stripedRows size="small" responsiveLayout="scroll">
                 <Column field="BARANG_KODE" header="Kode" />
-                <Column header="Nama Barang" body={(r) => <span className="font-bold">{getNamaBarang(r.BARANG_KODE)}</span>} />
+                <Column header="Nama Barang" body={(r) => <span className="font-bold">{getNamaBarang(r.NAMA_BARANG)}</span>} />
                 <Column 
                   header="Gudang / Rak" 
                   body={(r) => (
