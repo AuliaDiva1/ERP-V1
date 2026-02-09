@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import masterVendorRoutes from "./routes/masterVendorRoutes.js";
 import masterHariRoutes from "./routes/masterHariRoutes.js";
+import masterKaryawanRoutes from "./routes/masterKaryawanRoutes.js";
 
 // Import Rute Baru untuk Inventaris
 import masterJenisBarangRoutes from "./routes/masterJenisBarangRoutes.js";
@@ -44,8 +45,8 @@ app.use(
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Timestamp", "X-Signature"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    optionSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // ✅ TAMBAHKAN PATCH & OPTIONS
+    optionsSuccessStatus: 200, // ✅ Perbaiki typo: optionSuccessStatus -> optionsSuccessStatus
   })
 );
 
@@ -62,6 +63,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/master-vendor", masterVendorRoutes);
 app.use("/api/master-hari", masterHariRoutes);
+app.use("/api/master-karyawan", masterKaryawanRoutes);
 
 // Routes Master Inventaris
 app.use("/api/master-jenis-barang", masterJenisBarangRoutes);

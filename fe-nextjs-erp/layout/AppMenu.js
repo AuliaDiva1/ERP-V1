@@ -27,7 +27,8 @@ const AppMenu = () => {
                 label: "UTAMA",
                 items: [
                     { label: "Dashboard Utama", icon: "pi pi-fw pi-home", to: "/superadmin/dashboard" },
-                    { label: "Analitik Bisnis", icon: "pi pi-fw pi-chart-bar", to: "/superadmin/analytics" }
+                    { label: "Analitik Bisnis", icon: "pi pi-fw pi-chart-bar", to: "/superadmin/analytics" },
+                    { label: "Master Karyawan", icon: "pi pi-fw pi-users", to: "/master/karyawan" },
                 ]
             },
             {
