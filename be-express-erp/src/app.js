@@ -9,6 +9,9 @@ import userRoutes from "./routes/userRoutes.js";
 import masterVendorRoutes from "./routes/masterVendorRoutes.js";
 import masterHariRoutes from "./routes/masterHariRoutes.js";
 import masterKaryawanRoutes from "./routes/masterKaryawanRoutes.js";
+import batchRoutes from "./routes/masterBatchRoutes.js";
+import batchKaryawanRoutes from "./routes/batchKaryawanRoutes.js";
+import logbookRoutes from "./routes/logbookPekerjaanRoutes.js";
 
 // Import Rute Baru untuk Inventaris
 import masterJenisBarangRoutes from "./routes/masterJenisBarangRoutes.js";
@@ -64,6 +67,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/master-vendor", masterVendorRoutes);
 app.use("/api/master-hari", masterHariRoutes);
 app.use("/api/master-karyawan", masterKaryawanRoutes);
+app.use("/api/master-batch", batchRoutes);
+app.use("/api/batch-karyawan", batchKaryawanRoutes);
+app.use("/api/logbook-pekerjaan", logbookRoutes);
 
 // Routes Master Inventaris
 app.use("/api/master-jenis-barang", masterJenisBarangRoutes);

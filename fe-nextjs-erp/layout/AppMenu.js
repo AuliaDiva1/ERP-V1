@@ -50,6 +50,8 @@ const AppMenu = () => {
                         items: [
                             { label: "Daftar Gudang", icon: "pi pi-fw pi-building", to: "/master/gudang" },
                             { label: "Daftar Rak", icon: "pi pi-fw pi-th-large", to: "/master/rak" },
+                            { label: "Batch", icon: "pi pi-fw pi-box", to: "/master/batch" },
+                            { label: "Batch Karyawan", icon: "pi pi-fw pi-users", to: "/master/batch-karyawan" },
                         ]
                     },
                     {
@@ -76,6 +78,9 @@ const AppMenu = () => {
                 items: [
                     { label: "User Management", icon: "pi pi-fw pi-user-edit", to: "/master/users" },
                     { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
+                    { label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/master/logbook-pekerjaan" },
+                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/master/validasi-logbook" }
+
                 ]
             },
             {
@@ -176,7 +181,8 @@ const AppMenu = () => {
                         items: [
                             { label: "Rencana Produksi", icon: "pi pi-fw pi-list", to: "/produksi/rencana" },
                             { label: "Jadwal Produksi", icon: "pi pi-fw pi-calendar", to: "/produksi/jadwal" },
-                            { label: "Kapasitas Produksi", icon: "pi pi-fw pi-chart-bar", to: "/produksi/kapasitas" }
+                            { label: "Kapasitas Produksi", icon: "pi pi-fw pi-chart-bar", to: "/produksi/kapasitas" },
+                            { Label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/produksi/menu/logbook-pekerjaan" }
                         ]
                     },
                     {
@@ -277,7 +283,9 @@ const AppMenu = () => {
                     { label: "Data Absensi", icon: "pi pi-fw pi-calendar-times", to: "/hr/absensi" },
                     { label: "Jadwal Kerja", icon: "pi pi-fw pi-calendar", to: "/hr/jadwal" },
                     { label: "Lembur", icon: "pi pi-fw pi-clock", to: "/hr/lembur" },
-                    { label: "Cuti & Izin", icon: "pi pi-fw pi-calendar-minus", to: "/hr/cuti" }
+                    { label: "Cuti & Izin", icon: "pi pi-fw pi-calendar-minus", to: "/hr/cuti" },
+                    { label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file", to: "/hr/menu/logbook-pekerjaan" },
+                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/hr/menu/validasi-logbook" }
                 ]
             },
             {

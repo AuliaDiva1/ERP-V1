@@ -16,6 +16,7 @@ import {
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
 import { datetime, status } from "../utils/general.js";
+import { db } from "../core/config/knex.js"; // ✅ TAMBAHKAN IMPORT INI
 
 /**
  * REGISTER
@@ -143,9 +144,25 @@ export const login = async (req, res) => {
       });
     }
 
+    // ✅ AMBIL KARYAWAN_ID jika role adalah karyawan
+    let karyawanId = null;
+    if (["HR", "PRODUKSI", "GUDANG", "KEUANGAN"].includes(existingUser.role)) {
+      const karyawan = await db("master_karyawan")
+        .where("EMAIL", existingUser.email)
+        .select("KARYAWAN_ID")
+        .first();
+      
+      if (karyawan) {
+        karyawanId = karyawan.KARYAWAN_ID;
+      }
+    }
+
+    // ✅ GENERATE TOKEN dengan karyawan_id dan email
     const token = await generateToken({
       userId: existingUser.id,
       role: existingUser.role,
+      email: existingUser.email,      // ✅ TAMBAHKAN email
+      karyawan_id: karyawanId,         // ✅ TAMBAHKAN karyawan_id
     });
 
     // Simpan history login
@@ -166,6 +183,7 @@ export const login = async (req, res) => {
         name: existingUser.name,
         email: existingUser.email,
         role: existingUser.role,
+        karyawan_id: karyawanId,       // ✅ TAMBAHKAN karyawan_id di response
       },
     });
   } catch (error) {
@@ -338,12 +356,13 @@ export const registerKaryawan = async (req, res) => {
       status: status.SUKSES,
       message: "Registrasi karyawan berhasil",
       datetime: datetime(),
-      karyawan_id: karyawanId, // ✅ Return KARYAWAN_ID (KRY-0001)
+      karyawan_id: karyawanId,
       user: {
         id: userId,
         name: parsed.nama,
         email: parsed.email,
         role: parsed.role,
+        karyawan_id: karyawanId, // ✅ TAMBAHKAN karyawan_id di response
       },
     });
   } catch (err) {
