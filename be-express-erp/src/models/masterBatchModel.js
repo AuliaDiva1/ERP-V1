@@ -23,6 +23,26 @@ export const generateBatchId = async (jenisBatch) => {
 };
 
 /**
+ * 🔹 Generate KODE_PRODUK otomatis
+ * Format: PRD-001, PRD-002, dst.
+ */
+export const generateKodeProduk = async () => {
+  const lastBatch = await db("master_batch")
+    .where("KODE_PRODUK", "like", "PRD-%")
+    .orderBy("ID", "desc")
+    .first();
+
+  if (!lastBatch || !lastBatch.KODE_PRODUK) {
+    return "PRD-001";
+  }
+
+  const lastNumber = parseInt(lastBatch.KODE_PRODUK.split("-")[1]);
+  const newNumber = lastNumber + 1;
+
+  return `PRD-${String(newNumber).padStart(3, "0")}`;
+};
+
+/**
  * 🔹 Get all batch
  */
 export const getAllBatch = async () => {

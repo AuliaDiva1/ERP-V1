@@ -8,6 +8,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
+import { Checkbox } from "primereact/checkbox";
 import { useState, useEffect } from "react";
 import axios from "axios";
 
@@ -26,12 +27,13 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
     tanggal_target_selesai: null,
     estimasi_jam_kerja: 0,
     jumlah_karyawan_dibutuhkan: 0,
-    status_batch: "Pending", // ✅ Default untuk update
+    status_batch: "Pending",
     catatan: "",
   });
 
   const [satuanList, setSatuanList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [autoGenerateKode, setAutoGenerateKode] = useState(true);  // ✅ Toggle auto-generate
 
   const jenisBatchOptions = [
     { label: "Standar", value: "Standar" },
@@ -67,8 +69,10 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
         status_batch: selectedBatch.STATUS_BATCH || "Pending",
         catatan: selectedBatch.CATATAN || "",
       });
+      setAutoGenerateKode(false);  // ✅ Saat edit, disable auto-generate
     } else {
       resetForm();
+      setAutoGenerateKode(true);   // ✅ Saat create, enable auto-generate
     }
   }, [selectedBatch, visible]);
 
@@ -121,7 +125,8 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
       nama_batch: formData.nama_batch,
       jenis_batch: formData.jenis_batch,
       kategori_produk: formData.kategori_produk,
-      kode_produk: formData.kode_produk,
+      // ✅ Kirim kode_produk hanya jika manual (tidak auto-generate)
+      kode_produk: autoGenerateKode ? null : formData.kode_produk,
       target_jumlah: formData.target_jumlah,
       satuan: formData.satuan,
       spesifikasi: formData.spesifikasi,
@@ -136,11 +141,9 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
       catatan: formData.catatan,
     };
 
-    // ✅ HANYA KIRIM STATUS SAAT UPDATE
     if (selectedBatch) {
       payload.status_batch = formData.status_batch;
     }
-    // ✅ SAAT CREATE, STATUS TIDAK DIKIRIM (backend yang set "Pending")
 
     await onSave(payload);
     setLoading(false);
@@ -181,7 +184,7 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
           <div className="col-12">
             <Message 
               severity="info" 
-              text="Status batch akan otomatis di-set 'Pending' saat batch baru dibuat. Status akan berubah otomatis menjadi 'In Progress' saat ada logbook pertama yang di-approve, dan 'Completed' saat target tercapai."
+              text="Kode Produk dan Status akan otomatis di-generate oleh sistem."
               className="mb-3"
             />
           </div>
@@ -229,7 +232,7 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
               onChange={(e) => setFormData({ ...formData, status_batch: e.value })}
               placeholder="Pilih Status"
               className="mt-2"
-              disabled={selectedBatch?.STATUS_BATCH === "Completed"} // ✅ DISABLE JIKA COMPLETED
+              disabled={selectedBatch?.STATUS_BATCH === "Completed"}
             />
             {selectedBatch?.STATUS_BATCH === "Completed" && (
               <small className="text-500 mt-1 block">
@@ -254,18 +257,51 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
           />
         </div>
 
-        {/* Kode Produk */}
+        {/* ✅ KODE PRODUK - AUTO GENERATE atau MANUAL */}
         <div className="col-12 md:col-6">
           <label htmlFor="kode_produk" className="font-semibold">
             Kode Produk
+            {!selectedBatch && autoGenerateKode && (
+              <span className="text-primary ml-2">
+                <i className="pi pi-sparkles text-xs"></i> Auto
+              </span>
+            )}
           </label>
+          
+          {/* ✅ SAAT CREATE: Toggle auto-generate */}
+          {!selectedBatch && (
+            <div className="field-checkbox mt-2 mb-2">
+              <Checkbox 
+                inputId="autoKode" 
+                checked={autoGenerateKode}
+                onChange={(e) => {
+                  setAutoGenerateKode(e.checked);
+                  if (e.checked) {
+                    setFormData({ ...formData, kode_produk: "" });
+                  }
+                }}
+              />
+              <label htmlFor="autoKode" className="ml-2 text-sm">
+                Generate otomatis (PRD-001, PRD-002, ...)
+              </label>
+            </div>
+          )}
+
           <InputText
             id="kode_produk"
             value={formData.kode_produk}
             onChange={(e) => setFormData({ ...formData, kode_produk: e.target.value })}
-            placeholder="Contoh: PRD-001"
+            placeholder={autoGenerateKode ? "Akan di-generate otomatis" : "Contoh: PRD-001"}
             className="mt-2"
+            disabled={autoGenerateKode && !selectedBatch}
           />
+          
+          {autoGenerateKode && !selectedBatch && (
+            <small className="text-500 mt-1 block">
+              <i className="pi pi-info-circle mr-1"></i>
+              Kode akan otomatis di-generate: PRD-XXX
+            </small>
+          )}
         </div>
 
         {/* Target Jumlah */}
@@ -337,18 +373,31 @@ const FormBatch = ({ visible, onHide, selectedBatch, onSave }) => {
           <label htmlFor="estimasi_jam_kerja" className="font-semibold">
             Estimasi Jam Kerja
           </label>
-          <InputNumber
-            id="estimasi_jam_kerja"
-            value={formData.estimasi_jam_kerja}
-            onValueChange={(e) => setFormData({ ...formData, estimasi_jam_kerja: e.value })}
-            placeholder="0"
-            min={0}
-            mode="decimal"
-            minFractionDigits={2}
-            maxFractionDigits={2}
-            suffix=" jam"
-            className="mt-2"
-          />
+          <div className="p-inputgroup mt-2">
+            <InputNumber
+              id="estimasi_jam_kerja"
+              value={formData.estimasi_jam_kerja}
+              onValueChange={(e) => setFormData({ ...formData, estimasi_jam_kerja: e.value })}
+              placeholder="Contoh: 5.5 (untuk 5 jam 30 menit)"
+              min={0}
+              mode="decimal"
+              minFractionDigits={0}
+              maxFractionDigits={2}
+              className="w-full"
+            />
+            <span className="p-inputgroup-addon">jam</span>
+          </div>
+          {formData.estimasi_jam_kerja > 0 && (
+            <small className="text-primary mt-1 block font-semibold">
+              <i className="pi pi-clock mr-1"></i>
+              {(() => {
+                const decimal = parseFloat(formData.estimasi_jam_kerja);
+                const h = Math.floor(decimal);
+                const m = Math.round((decimal - h) * 60);
+                return m > 0 ? `= ${h} jam ${m} menit` : `= ${h} jam`;
+              })()}
+            </small>
+          )}
         </div>
 
         {/* Jumlah Karyawan Dibutuhkan */}

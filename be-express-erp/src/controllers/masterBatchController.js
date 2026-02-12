@@ -136,7 +136,7 @@ export const createBatch = async (req, res) => {
       nama_batch,
       jenis_batch,
       kategori_produk,
-      kode_produk,
+      kode_produk,  // ✅ Opsional dari FE
       target_jumlah,
       satuan,
       spesifikasi,
@@ -159,6 +159,9 @@ export const createBatch = async (req, res) => {
     // ✅ Generate BATCH_ID otomatis
     const batchId = await BatchModel.generateBatchId(jenis_batch);
 
+    // ✅ Generate KODE_PRODUK otomatis jika tidak diisi
+    const kodeProduk = kode_produk || await BatchModel.generateKodeProduk();
+
     // ✅ Ambil KARYAWAN_ID dari user yang login
     const userId = req.user?.userId;
     const createdByKaryawan = await getKaryawanIdFromUserId(userId);
@@ -168,7 +171,7 @@ export const createBatch = async (req, res) => {
       NAMA_BATCH: nama_batch,
       JENIS_BATCH: jenis_batch,
       KATEGORI_PRODUK: kategori_produk || null,
-      KODE_PRODUK: kode_produk || null,
+      KODE_PRODUK: kodeProduk,  // ✅ Auto-generated atau manual
       TARGET_JUMLAH: target_jumlah,
       SATUAN: satuan || null,
       SPESIFIKASI: spesifikasi || null,
@@ -178,7 +181,7 @@ export const createBatch = async (req, res) => {
       JUMLAH_KARYAWAN_DIBUTUHKAN: jumlah_karyawan_dibutuhkan || null,
       CATATAN: catatan || null,
       CREATED_BY_KARYAWAN: createdByKaryawan,
-      STATUS_BATCH: "Pending", // ✅ PAKSA DARI BACKEND - FE TIDAK BISA OVERRIDE
+      STATUS_BATCH: "Pending",
     };
 
     const newBatch = await BatchModel.createBatch(batchData);
@@ -188,6 +191,7 @@ export const createBatch = async (req, res) => {
       message: "Batch berhasil dibuat",
       datetime: datetime(),
       batch_id: batchId,
+      kode_produk: kodeProduk,  // ✅ Return kode produk yang di-generate
       data: newBatch,
     });
   } catch (err) {

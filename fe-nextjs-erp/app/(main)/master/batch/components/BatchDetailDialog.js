@@ -173,7 +173,23 @@ const BatchDetailDialog = ({ visible, onHide, batch }) => {
                 />
                 <InfoItem 
                   label="Estimasi Jam Kerja" 
-                  value={batch.ESTIMASI_JAM_KERJA ? `${batch.ESTIMASI_JAM_KERJA} jam` : "-"}
+                  value={(() => {
+                    if (!batch.ESTIMASI_JAM_KERJA) return "-";
+                    
+                    const decimal = parseFloat(batch.ESTIMASI_JAM_KERJA);
+                    const hours = Math.floor(decimal);
+                    const minutes = Math.round((decimal - hours) * 60);
+                    
+                    if (hours > 0 && minutes > 0) {
+                      return `${hours} jam ${minutes} menit`;
+                    } else if (hours > 0) {
+                      return `${hours} jam`;
+                    } else if (minutes > 0) {
+                      return `${minutes} menit`;
+                    }
+                    
+                    return "-";
+                  })()}
                   icon="pi pi-clock" 
                 />
                 <InfoItem 

@@ -396,17 +396,26 @@ export default function LogbookPekerjaanPage() {
       sortable: true
     },
     {
-      field: "JAM_MULAI",
-      header: "Jam Mulai",
-      style: { width: "100px" },
-      sortable: true
+    field: "JAM_MULAI",
+    header: "Jam Mulai",
+    body: (rowData) => {
+        if (!rowData.JAM_MULAI) return "-";
+        // ✅ Remove seconds (:00) - format HH:MM only
+        return rowData.JAM_MULAI.substring(0, 5);
+    },
+    style: { width: "100px" },
+    sortable: true
     },
     {
-      field: "JAM_SELESAI",
-      header: "Jam Selesai",
-      body: (rowData) => rowData.JAM_SELESAI || "-",
-      style: { width: "100px" },
-      sortable: true
+    field: "JAM_SELESAI",
+    header: "Jam Selesai",
+    body: (rowData) => {
+        if (!rowData.JAM_SELESAI) return "-";
+        // ✅ Remove seconds (:00) - format HH:MM only
+        return rowData.JAM_SELESAI.substring(0, 5);
+    },
+    style: { width: "100px" },
+    sortable: true
     },
     {
     field: "JAM_KERJA",
