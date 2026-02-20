@@ -79,7 +79,8 @@ const AppMenu = () => {
                     { label: "User Management", icon: "pi pi-fw pi-user-edit", to: "/master/users" },
                     { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
                     { label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/master/logbook-pekerjaan" },
-                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/master/validasi-logbook" }
+                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/master/validasi-logbook" },
+                    { label: "Master Pengajuan", icon: "pi pi-fw pi-file", to: "/master/master_pengajuan" }
 
                 ]
             },
