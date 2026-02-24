@@ -8,7 +8,6 @@ import { confirmDialog, ConfirmDialog } from "primereact/confirmdialog";
 import { Tag } from "primereact/tag";
 import dynamic from "next/dynamic";
 
-// Import Komponen Pendukung
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import AdjustPrintLaporan from "./print/AdjustPrintLaporan";
@@ -16,7 +15,6 @@ import { generateFakturPDF } from "./print/PrintDetailInvoice";
 import FormPembelian from "./components/FormPembelian";
 import FormPelunasan from "./components/FormPelunasan";
 
-// --- PAKAI KOMPONEN DETAIL YANG BARU INI OM ---
 import PembelianDetailDialog from "./components/DetailPage"; 
 
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
@@ -300,12 +298,18 @@ export default function PembelianPage() {
       </Dialog>
 
       <AdjustPrintLaporan 
-        adjustDialog={adjustPrintDialog} setAdjustDialog={setAdjustPrintDialog} 
-        dataToPrint={dataList} setPdfUrl={setPdfUrl} setFileName={setFileName} setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        adjustDialog={adjustPrintDialog} 
+        setAdjustDialog={setAdjustPrintDialog} 
+        dataToPrint={dataList} 
+        masterData={masterData} // <--- SUDAH DITAMBAHKAN DISINI OM
+        setPdfUrl={setPdfUrl} 
+        setFileName={setFileName} 
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
         judulLaporan="LAPORAN DATA PEMBELIAN"
         columnOptions={[
           { name: "No. Invoice", value: "NO_INVOICE_BELI" }, 
           { name: "Vendor", value: "NAMA_VENDOR" }, 
+          { name: "Alamat Vendor", value: "ALAMAT_VENDOR" }, // Pastikan ini juga ada di kolom
           { name: "Status", value: "STATUS_BAYAR" }, 
           { name: "Sisa Tagihan", value: "SISA_TAGIHAN" }
         ]}

@@ -12,6 +12,7 @@ import masterKaryawanRoutes from "./routes/masterKaryawanRoutes.js";
 import batchRoutes from "./routes/masterBatchRoutes.js";
 import batchKaryawanRoutes from "./routes/batchKaryawanRoutes.js";
 import logbookRoutes from "./routes/logbookPekerjaanRoutes.js";
+import masterPengajuanRoutes from "./routes/masterPengajuanRoutes.js";
 
 // Import Rute Baru untuk Inventaris
 import masterJenisBarangRoutes from "./routes/masterJenisBarangRoutes.js";
@@ -70,6 +71,8 @@ app.use("/api/master-karyawan", masterKaryawanRoutes);
 app.use("/api/master-batch", batchRoutes);
 app.use("/api/batch-karyawan", batchKaryawanRoutes);
 app.use("/api/logbook-pekerjaan", logbookRoutes);
+app.use("/api/master-pengajuan", masterPengajuanRoutes);
+
 
 // Routes Master Inventaris
 app.use("/api/master-jenis-barang", masterJenisBarangRoutes);
@@ -80,7 +83,7 @@ app.use("/api/master-rak", masterRakRoutes);
 app.use("/api/stok-lokasi", stokLokasiRoutes);
 
 // --- ROUTES TRANSAKSI & OPERASIONAL ---
-app.use("/api/tr-barang-masuk", trBarangMasukRoutes);     // Tambah stok
+app.use("/api/barang-masuk", trBarangMasukRoutes);     // Tambah stok
 app.use("/api/tr-barang-keluar", trBarangKeluarRoutes);   // Kurangi stok
 app.use("/api/inv-pembelian", invPembelianRoutes);       // Tagihan Vendor
 app.use("/api/inv-pengiriman", invPengirimanRoutes);     // SJ Header

@@ -23,6 +23,7 @@ export default function AdjustPrintLaporan({
   adjustDialog,
   setAdjustDialog,
   dataToPrint,
+  masterData, // <-- Pastikan ini dikirim dari PembelianPage
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
@@ -36,7 +37,6 @@ export default function AdjustPrintLaporan({
     marginLeft: 10,
     paperSize: "A4",
     orientation: "portrait",
-    // Tambahkan ALAMAT_VENDOR di sini
     selectedColumns: ["NO_INVOICE_BELI", "NAMA_VENDOR", "ALAMAT_VENDOR", "TGL_INVOICE", "TOTAL_BAYAR", "STATUS_BAYAR"],
   });
 
@@ -49,6 +49,10 @@ export default function AdjustPrintLaporan({
   };
 
   const generatePDF = () => {
+    // --- DEBUGGING AREA (Cek F12 Console) ---
+    console.log("Data Laporan:", dataToPrint);
+    console.log("Master Vendor:", masterData?.vendors);
+
     const doc = new jsPDF({
       orientation: config.orientation,
       unit: "mm",
@@ -66,14 +70,14 @@ export default function AdjustPrintLaporan({
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     const tglSekarang = new Date().toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
-    doc.text(`Periode: ${tglSekarang}`, pageWidth / 2, mT + 7, { align: "center" });
+    doc.text(`Dicetak pada: ${tglSekarang}`, pageWidth / 2, mT + 7, { align: "center" });
 
     // 2. MAPPING KOLOM
     const tableColumn = config.selectedColumns.map((col) => {
       const headers = {
         NO_INVOICE_BELI: "No. Invoice",
         NAMA_VENDOR: "Vendor",
-        ALAMAT_VENDOR: "Alamat Vendor", // Header Alamat
+        ALAMAT_VENDOR: "Alamat Vendor", 
         TGL_INVOICE: "Tgl Invoice",
         TOTAL_BAYAR: "Total (Rp)",
         SISA_TAGIHAN: "Sisa (Rp)",
@@ -82,17 +86,24 @@ export default function AdjustPrintLaporan({
       return { header: headers[col] || col, dataKey: col };
     });
 
-    // 3. MAPPING DATA BODY
-    const tableRows = dataToPrint.map((item) => ({
-      ...item,
-      // Pastikan field ALAMAT_VENDOR ada di dataToPrint, jika tidak ada tampilkan "-"
-      ALAMAT_VENDOR: item.ALAMAT_VENDOR || "-", 
-      TGL_INVOICE: item.TGL_INVOICE ? new Date(item.TGL_INVOICE).toLocaleDateString("id-ID") : "-",
-      TOTAL_BAYAR: formatCurrency(item.TOTAL_BAYAR),
-      SISA_TAGIHAN: formatCurrency(item.SISA_TAGIHAN),
-    }));
+    // 3. MAPPING DATA BODY (DENGAN LOOKUP ALAMAT)
+    const tableRows = dataToPrint.map((item) => {
+      // Cari data vendor di masterData.vendors berdasarkan VENDOR_ID atau NAMA_VENDOR
+      const vendorInfo = masterData?.vendors?.find(v => 
+        (v.VENDOR_ID && item.VENDOR_ID && v.VENDOR_ID === item.VENDOR_ID) || 
+        (v.NAMA_VENDOR && item.NAMA_VENDOR && v.NAMA_VENDOR === item.NAMA_VENDOR)
+      );
 
-    // Hitung Grand Total
+      return {
+        ...item,
+        // Jika alamat tidak ada di item transaksi, ambil dari master vendor
+        ALAMAT_VENDOR: item.ALAMAT_VENDOR || vendorInfo?.ALAMAT_VENDOR || "Alamat -", 
+        TGL_INVOICE: item.TGL_INVOICE ? new Date(item.TGL_INVOICE).toLocaleDateString("id-ID") : "-",
+        TOTAL_BAYAR: formatCurrency(item.TOTAL_BAYAR),
+        SISA_TAGIHAN: formatCurrency(item.SISA_TAGIHAN),
+      };
+    });
+
     const grandTotal = dataToPrint.reduce((sum, item) => sum + (parseFloat(item.TOTAL_BAYAR) || 0), 0);
 
     autoTable(doc, {
@@ -108,26 +119,32 @@ export default function AdjustPrintLaporan({
           return "";
         })
       ],
-      footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold', halign: 'right' },
-      styles: { fontSize: 8, cellPadding: 3 },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', halign: 'right' },
+      styles: { 
+        fontSize: 8, 
+        cellPadding: 3, 
+        overflow: 'linebreak' // Agar alamat panjang turun ke bawah
+      },
       columnStyles: {
+        ALAMAT_VENDOR: { cellWidth: 50 }, // Lebar khusus alamat agar tidak sempit
         TOTAL_BAYAR: { halign: 'right' },
         SISA_TAGIHAN: { halign: 'right' },
-        ALAMAT_VENDOR: { cellWidth: 40 } // Berikan lebar lebih untuk alamat
+        STATUS_BAYAR: { halign: 'center' }
       }
     });
 
-    // 4. TANDA TANGAN
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(10);
-    doc.text(`Dicetak pada: ${tglSekarang}`, mL, finalY);
-
+    // 4. AREA TANDA TANGAN
+    const finalY = doc.lastAutoTable.finalY + 15;
     const signX = pageWidth - mR - 50;
-    doc.text("Disetujui Oleh,", signX, finalY);
+    
+    doc.setFontSize(10);
+    doc.text("Gresik, " + tglSekarang, signX, finalY);
+    doc.text("Disetujui Oleh,", signX, finalY + 7);
+    
     doc.setFont("helvetica", "bold");
-    doc.text(namaPenandatangan, signX, finalY + 25);
-    doc.setLineWidth(0.5);
-    doc.line(signX, finalY + 26, signX + 40, finalY + 26); // Garis bawah ttd
+    doc.text(namaPenandatangan, signX, finalY + 30);
+    doc.setLineWidth(0.3);
+    doc.line(signX, finalY + 31, signX + 45, finalY + 31); // Garis Tanda Tangan
 
     return doc;
   };
@@ -141,15 +158,21 @@ export default function AdjustPrintLaporan({
   };
 
   return (
-    <Dialog visible={adjustDialog} onHide={() => setAdjustDialog(false)} header="Pengaturan Cetak Laporan" style={{ width: "450px" }} modal footer={(
+    <Dialog 
+      visible={adjustDialog} 
+      onHide={() => setAdjustDialog(false)} 
+      header={<div className="flex align-items-center gap-2"><i className="pi pi-print text-primary"></i><span>Pengaturan Cetak Laporan</span></div>} 
+      style={{ width: "480px" }} 
+      modal 
+      footer={(
         <div className="flex justify-content-end gap-2">
-            <Button label="Batal" className="p-button-text p-button-secondary" onClick={() => setAdjustDialog(false)} />
+            <Button label="Batal" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setAdjustDialog(false)} />
             <Button label="Generate PDF" icon="pi pi-file-pdf" severity="danger" onClick={handleGenerate} />
         </div>
     )}>
-      <div className="flex flex-column gap-4">
+      <div className="flex flex-column gap-4 p-2">
         <div className="field">
-          <label className="font-bold block mb-2">Kolom Laporan</label>
+          <label className="font-bold block mb-2">Kolom Yang Ditampilkan</label>
           <MultiSelect 
             value={config.selectedColumns} 
             options={[
@@ -164,18 +187,23 @@ export default function AdjustPrintLaporan({
             onChange={(e) => setConfig({...config, selectedColumns: e.value})} 
             className="w-full"
             display="chip"
+            placeholder="Pilih Kolom"
           />
         </div>
         
-        <div className="flex gap-3">
-            <div className="flex-1 field">
-                <label className="font-bold block mb-2">Kertas</label>
+        <div className="grid">
+            <div className="col-6 field">
+                <label className="font-bold block mb-2">Ukuran Kertas</label>
                 <Dropdown value={config.paperSize} options={paperSizes} optionLabel="name" onChange={(e) => setConfig({...config, paperSize: e.value})} className="w-full" />
             </div>
-            <div className="flex-1 field">
+            <div className="col-6 field">
                 <label className="font-bold block mb-2">Orientasi</label>
                 <Dropdown value={config.orientation} options={orientationOptions} onChange={(e) => setConfig({...config, orientation: e.value})} className="w-full" />
             </div>
+        </div>
+
+        <div className="surface-100 p-3 border-round">
+            <span className="text-sm text-600"><i className="pi pi-info-circle mr-2"></i>Alamat vendor diambil otomatis dari Master Vendor jika tidak tersedia di data transaksi.</span>
         </div>
       </div>
     </Dialog>

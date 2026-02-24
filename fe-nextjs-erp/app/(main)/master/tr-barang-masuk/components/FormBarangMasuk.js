@@ -12,60 +12,63 @@ const FormBarangMasuk = ({
   visible,
   onHide,
   onSave,
-  masterBarang, // List barang dari API
-  masterGudang, // List gudang
-  masterRak,    // List rak
-  barangMasukList, // Untuk generate NO_MASUK otomatis
+  masterBarang = [],
+  masterGudang = [],
+  masterRak = [],
+  barangMasukList = [],
 }) => {
-  const [noMasuk, setNoMasuk] = useState("");
-  const [barangKode, setBarangKode] = useState(null);
-  const [kodeGudang, setKodeGudang] = useState(null);
-  const [kodeRak, setKodeRak] = useState(null);
-  const [qty, setQty] = useState(0);
-  const [batchNo, setBatchNo] = useState("");
-  const [tglKadaluarsa, setTglKadaluarsa] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  // Inisialisasi sesuai struktur tabel DB (tanpa ID_MASUK karena Auto Increment)
+  const [formData, setFormData] = useState({
+    NO_MASUK: "",
+    BARANG_KODE: null,
+    KODE_GUDANG: null,
+    KODE_RAK: null,
+    QTY: 0.00,
+    BATCH_NO: "",
+    TGL_KADALUARSA: null,
+  });
 
-  // Generate Nomor Masuk Otomatis: IN-YYYYMMDD-0001
+  // Generator No Masuk: IN-YYYYMMDD-0001
   const generateNoMasuk = () => {
     const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+    const dateStr = today.getFullYear().toString() + 
+                    (today.getMonth() + 1).toString().padStart(2, '0') + 
+                    today.getDate().toString().padStart(2, '0');
     
-    if (!barangMasukList || barangMasukList.length === 0) {
-      return `IN-${dateStr}-0001`;
+    let nextNum = 1;
+    if (barangMasukList && barangMasukList.length > 0) {
+      const lastNo = barangMasukList[0]?.NO_MASUK || "";
+      if (lastNo.includes(dateStr)) {
+        const lastSeq = parseInt(lastNo.split("-")[2], 10);
+        nextNum = isNaN(lastSeq) ? 1 : lastSeq + 1;
+      }
     }
-
-    const lastEntry = barangMasukList[0]; // Asumsi data terbaru ada di index 0
-    const lastNo = lastEntry?.NO_MASUK || `IN-${dateStr}-0000`;
-    const lastNum = parseInt(lastNo.split("-")[2], 10);
-    const nextNum = isNaN(lastNum) ? 1 : lastNum + 1;
-
     return `IN-${dateStr}-${nextNum.toString().padStart(4, "0")}`;
   };
 
   useEffect(() => {
     if (visible) {
-      setNoMasuk(generateNoMasuk());
-      resetFields();
+      setFormData({
+        NO_MASUK: generateNoMasuk(),
+        BARANG_KODE: null,
+        KODE_GUDANG: null,
+        KODE_RAK: null,
+        QTY: 0,
+        BATCH_NO: "",
+        TGL_KADALUARSA: null,
+      });
+      setErrors({});
     }
   }, [visible]);
 
-  const resetFields = () => {
-    setBarangKode(null);
-    setKodeGudang(null);
-    setKodeRak(null);
-    setQty(0);
-    setBatchNo("");
-    setTglKadaluarsa(null);
-    setErrors({});
-  };
-
   const validateForm = () => {
-    const newErrors = {};
-    if (!barangKode) newErrors.barangKode = "Pilih barang terlebih dahulu";
-    if (!kodeGudang) newErrors.kodeGudang = "Pilih gudang";
-    if (!qty || qty <= 0) newErrors.qty = "Jumlah (Qty) harus lebih dari 0";
+    let newErrors = {};
+    if (!formData.BARANG_KODE) newErrors.BARANG_KODE = "Wajib diisi";
+    if (!formData.KODE_GUDANG) newErrors.KODE_GUDANG = "Wajib diisi";
+    if (!formData.QTY || formData.QTY <= 0) newErrors.QTY = "Qty minimal 0.01";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -74,127 +77,119 @@ const FormBarangMasuk = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    const payload = {
-      NO_MASUK: noMasuk,
-      BARANG_KODE: barangKode,
-      KODE_GUDANG: kodeGudang,
-      KODE_RAK: kodeRak,
-      QTY: qty,
-      BATCH_NO: batchNo.trim() || null,
-      TGL_KADALUARSA: tglKadaluarsa ? tglKadaluarsa.toISOString().split('T')[0] : null,
-    };
-
     setLoading(true);
-    await onSave(payload);
-    setLoading(false);
-    onHide();
+    try {
+      // Mapping ke format yang diterima MySQL
+      const payload = {
+        NO_MASUK: formData.NO_MASUK,
+        BARANG_KODE: formData.BARANG_KODE,
+        KODE_GUDANG: formData.KODE_GUDANG,
+        KODE_RAK: formData.KODE_RAK || null, // NULL jika tidak dipilih
+        QTY: parseFloat(formData.QTY), // Sesuai float(8,2)
+        BATCH_NO: formData.BATCH_NO?.trim() || null,
+        // Format YYYY-MM-DD untuk SQL Date
+        TGL_KADALUARSA: formData.TGL_KADALUARSA 
+          ? formData.TGL_KADALUARSA.toLocaleDateString('en-CA') 
+          : null,
+      };
+      
+      await onSave(payload);
+    } catch (err) {
+      console.error("Submit error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog
-      header="Catat Barang Masuk (Manual/Bonus/Produksi)"
+      header="Input Barang Masuk"
       visible={visible}
-      style={{ width: "50vw" }}
+      style={{ width: "500px" }}
       modal
       onHide={onHide}
-      draggable={false}
+      footer={
+        <div className="flex justify-content-end gap-2">
+          <Button label="Batal" icon="pi pi-times" text onClick={onHide} disabled={loading} />
+          <Button label="Simpan" icon="pi pi-check" loading={loading} onClick={handleSubmit} severity="success" />
+        </div>
+      }
     >
-      <div className="p-fluid grid">
-        {/* No. Masuk */}
-        <div className="field col-12 md:col-6 mb-4">
-          <label className="font-bold block mb-2">No. Transaksi Masuk</label>
-          <InputText value={noMasuk} disabled className="p-disabled" />
+      <div className="p-fluid grid mt-1">
+        <div className="field col-12">
+          <label className="font-bold text-sm">No. Masuk</label>
+          <InputText value={formData.NO_MASUK} disabled className="p-disabled bg-gray-100" />
         </div>
 
-        {/* Pilih Barang */}
-        <div className="field col-12 md:col-6 mb-4">
-          <label className="font-bold block mb-2">Barang <span className="text-red-500">*</span></label>
+        <div className="field col-12">
+          <label className="font-bold text-sm">Barang <span className="text-red-500">*</span></label>
           <Dropdown
-            value={barangKode}
+            value={formData.BARANG_KODE}
             options={masterBarang}
             optionLabel="NAMA_BARANG"
             optionValue="BARANG_KODE"
-            onChange={(e) => setBarangKode(e.value)}
-            placeholder="Pilih Barang"
+            onChange={(e) => setFormData({...formData, BARANG_KODE: e.value})}
+            placeholder="Cari Barang..."
             filter
-            className={errors.barangKode ? "p-invalid" : ""}
+            className={errors.BARANG_KODE ? "p-invalid" : ""}
           />
-          {errors.barangKode && <small className="p-error">{errors.barangKode}</small>}
         </div>
 
-        {/* Qty */}
-        <div className="field col-12 md:col-6 mb-4">
-          <label className="font-bold block mb-2">Jumlah (QTY) <span className="text-red-500">*</span></label>
+        <div className="field col-6">
+          <label className="font-bold text-sm">QTY <span className="text-red-500">*</span></label>
           <InputNumber
-            value={qty}
-            onValueChange={(e) => setQty(e.value)}
-            mode="decimal"
+            value={formData.QTY}
+            onValueChange={(e) => setFormData({...formData, QTY: e.value})}
             minFractionDigits={2}
+            maxFractionDigits={2}
             placeholder="0.00"
-            className={errors.qty ? "p-invalid" : ""}
+            className={errors.QTY ? "p-invalid" : ""}
           />
-          {errors.qty && <small className="p-error">{errors.qty}</small>}
         </div>
 
-        {/* Batch No */}
-        <div className="field col-12 md:col-6 mb-4">
-          <label className="font-bold block mb-2">Nomor Batch (Batch No)</label>
+        <div className="field col-6">
+          <label className="font-bold text-sm">Batch No</label>
           <InputText
-            value={batchNo}
-            onChange={(e) => setBatchNo(e.target.value)}
-            placeholder="Contoh: BCH-2026-001"
+            value={formData.BATCH_NO}
+            onChange={(e) => setFormData({...formData, BATCH_NO: e.target.value})}
+            placeholder="No. Produksi"
           />
         </div>
 
-        {/* Gudang */}
-        <div className="field col-12 md:col-4 mb-4">
-          <label className="font-bold block mb-2">Gudang <span className="text-red-500">*</span></label>
+        <div className="field col-6">
+          <label className="font-bold text-sm">Gudang <span className="text-red-500">*</span></label>
           <Dropdown
-            value={kodeGudang}
+            value={formData.KODE_GUDANG}
             options={masterGudang}
             optionLabel="NAMA_GUDANG"
             optionValue="KODE_GUDANG"
-            onChange={(e) => setKodeGudang(e.value)}
+            onChange={(e) => setFormData({...formData, KODE_GUDANG: e.value, KODE_RAK: null})}
             placeholder="Pilih Gudang"
-            className={errors.kodeGudang ? "p-invalid" : ""}
           />
         </div>
 
-        {/* Rak */}
-        <div className="field col-12 md:col-4 mb-4">
-          <label className="font-bold block mb-2">Rak (Opsional)</label>
+        <div className="field col-6">
+          <label className="font-bold text-sm">Rak (Opsional)</label>
           <Dropdown
-            value={kodeRak}
-            options={masterRak?.filter(r => r.KODE_GUDANG === kodeGudang)} // Filter rak berdasarkan gudang
+            value={formData.KODE_RAK}
+            options={masterRak?.filter(r => r.KODE_GUDANG === formData.KODE_GUDANG)}
             optionLabel="NAMA_RAK"
             optionValue="KODE_RAK"
-            onChange={(e) => setKodeRak(e.value)}
+            onChange={(e) => setFormData({...formData, KODE_RAK: e.value})}
             placeholder="Pilih Rak"
-            disabled={!kodeGudang}
+            disabled={!formData.KODE_GUDANG}
+            showClear
           />
         </div>
 
-        {/* Tgl Kadaluarsa */}
-        <div className="field col-12 md:col-4 mb-4">
-          <label className="font-bold block mb-2">Tgl. Kadaluarsa</label>
+        <div className="field col-12">
+          <label className="font-bold text-sm">Tgl Kadaluarsa</label>
           <Calendar
-            value={tglKadaluarsa}
-            onChange={(e) => setTglKadaluarsa(e.value)}
+            value={formData.TGL_KADALUARSA}
+            onChange={(e) => setFormData({...formData, TGL_KADALUARSA: e.value})}
             dateFormat="dd/mm/yy"
             showIcon
             placeholder="Pilih Tanggal"
-          />
-        </div>
-
-        {/* Footer Buttons */}
-        <div className="col-12 flex justify-content-end gap-2 mt-4">
-          <Button label="Batal" icon="pi pi-times" className="p-button-text" onClick={onHide} />
-          <Button 
-            label="Simpan Barang Masuk" 
-            icon="pi pi-check" 
-            loading={loading} 
-            onClick={handleSubmit} 
-            className="p-button-success"
           />
         </div>
       </div>
