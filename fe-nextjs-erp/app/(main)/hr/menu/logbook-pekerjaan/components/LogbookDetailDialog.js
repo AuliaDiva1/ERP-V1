@@ -137,64 +137,64 @@ const LogbookDetailDialog = ({ visible, onHide, logbook }) => {
 
             {/* Info Ringkas */}
             <div className="grid mt-3">
-              <div className="col-12 md:col-3">
+            <div className="col-12 md:col-3">
                 <div className="text-center p-3 surface-100 border-round">
-                  <i className="pi pi-clock text-primary text-2xl mb-2"></i>
-                  <div className="text-600 text-xs mb-1">Jam Kerja</div>
-                  <div className="text-900 font-bold">
+                <i className="pi pi-clock text-primary text-2xl mb-2"></i>
+                <div className="text-600 text-xs mb-1">Jam Kerja</div>
+                <div className="text-900 font-bold">
                     {(() => {
-                      // ✅ Format sama seperti di ValidasiLogbookPage
-                      if (!logbook.JAM_KERJA) return "-";
-                      
-                      const parts = logbook.JAM_KERJA.toString().split(':');
-                      if (parts.length === 2) {
+                    // ✅ Format sama seperti di ValidasiLogbookPage
+                    if (!logbook.JAM_KERJA) return "-";
+                    
+                    const parts = logbook.JAM_KERJA.toString().split(':');
+                    if (parts.length === 2) {
                         const hours = parseInt(parts[0]) || 0;
                         const minutes = parseInt(parts[1]) || 0;
                         
                         if (hours > 0 && minutes > 0) {
-                          return `${hours} jam ${minutes} menit`;
+                        return `${hours} jam ${minutes} menit`;
                         } else if (hours > 0) {
-                          return `${hours} jam`;
+                        return `${hours} jam`;
                         } else if (minutes > 0) {
-                          return `${minutes} menit`;
+                        return `${minutes} menit`;
                         }
-                      }
-                      
-                      // Fallback untuk format lama (decimal)
-                      const decimal = parseFloat(logbook.JAM_KERJA);
-                      if (!isNaN(decimal)) {
+                    }
+                    
+                    // Fallback untuk format lama (decimal)
+                    const decimal = parseFloat(logbook.JAM_KERJA);
+                    if (!isNaN(decimal)) {
                         const h = Math.floor(decimal);
                         const m = Math.round((decimal - h) * 60);
                         return m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
-                      }
-                      
-                      return logbook.JAM_KERJA;
+                    }
+                    
+                    return logbook.JAM_KERJA;
                     })()}
-                  </div>
                 </div>
-              </div>
-              <div className="col-12 md:col-3">
+                </div>
+            </div>
+            <div className="col-12 md:col-3">
                 <div className="text-center p-3 surface-100 border-round">
-                  <i className="pi pi-box text-orange-500 text-2xl mb-2"></i>
-                  <div className="text-600 text-xs mb-1">Output</div>
-                  {/* ✅ Hilangkan decimal, display sebagai integer */}
-                  <div className="text-900 font-bold">{Math.floor(logbook.JUMLAH_OUTPUT || 0)} unit</div>
+                <i className="pi pi-box text-orange-500 text-2xl mb-2"></i>
+                <div className="text-600 text-xs mb-1">Output</div>
+                {/* ✅ Hilangkan decimal, display sebagai integer */}
+                <div className="text-900 font-bold">{Math.floor(logbook.JUMLAH_OUTPUT || 0)} unit</div>
                 </div>
-              </div>
-              <div className="col-12 md:col-3">
+            </div>
+            <div className="col-12 md:col-3">
                 <div className="text-center p-3 surface-100 border-round">
-                  <i className="pi pi-user text-blue-500 text-2xl mb-2"></i>
-                  <div className="text-600 text-xs mb-1">Karyawan</div>
-                  <div className="text-900 font-bold text-sm">{logbook.NAMA_KARYAWAN}</div>
+                <i className="pi pi-user text-blue-500 text-2xl mb-2"></i>
+                <div className="text-600 text-xs mb-1">Karyawan</div>
+                <div className="text-900 font-bold text-sm">{logbook.NAMA_KARYAWAN}</div>
                 </div>
-              </div>
-              <div className="col-12 md:col-3">
+            </div>
+            <div className="col-12 md:col-3">
                 <div className="text-center p-3 surface-100 border-round">
-                  <i className="pi pi-building text-purple-500 text-2xl mb-2"></i>
-                  <div className="text-600 text-xs mb-1">Departemen</div>
-                  <div className="text-900 font-bold">{logbook.DEPARTEMEN}</div>
+                <i className="pi pi-building text-purple-500 text-2xl mb-2"></i>
+                <div className="text-600 text-xs mb-1">Departemen</div>
+                <div className="text-900 font-bold">{logbook.DEPARTEMEN}</div>
                 </div>
-              </div>
+            </div>
             </div>
           </div>
 
@@ -231,19 +231,46 @@ const LogbookDetailDialog = ({ visible, onHide, logbook }) => {
                   icon="pi pi-calendar" 
                 />
                 <InfoItem 
-                  label="Jam Mulai" 
-                  value={logbook.JAM_MULAI ? logbook.JAM_MULAI.substring(0,5) : "-"} 
-                  icon="pi pi-clock" 
+                label="Jam Mulai" 
+                value={logbook.JAM_MULAI ? logbook.JAM_MULAI.substring(0,5) : "-"} 
+                icon="pi pi-clock" 
                 />
                 <InfoItem 
-                  label="Jam Selesai" 
-                  value={logbook.JAM_SELESAI ? logbook.JAM_SELESAI.substring(0,5) : "-"} 
-                  icon="pi pi-clock" 
+                label="Jam Selesai" 
+                value={logbook.JAM_SELESAI ? logbook.JAM_SELESAI.substring(0,5) : "-"} 
+                icon="pi pi-clock" 
                 />
-                <InfoItem 
-                  label="Total Jam Kerja" 
-                  value={`${logbook.JAM_KERJA} jam`}
-                  icon="pi pi-stopwatch" 
+                <InfoItem
+                label="Jam Kerja"
+                value={(() => {
+                    if (!logbook.JAM_KERJA) return "-";
+                    
+                    const parts = logbook.JAM_KERJA.toString().split(':');
+                    if (parts.length === 2) {
+                    const hours = parseInt(parts[0]) || 0;
+                    const minutes = parseInt(parts[1]) || 0;
+                    
+                    if (hours > 0 && minutes > 0) {
+                        return `${hours} jam ${minutes} menit (${logbook.JAM_MULAI} - ${logbook.JAM_SELESAI || 'Belum selesai'})`;
+                    } else if (hours > 0) {
+                        return `${hours} jam (${logbook.JAM_MULAI} - ${logbook.JAM_SELESAI || 'Belum selesai'})`;
+                    } else if (minutes > 0) {
+                        return `${minutes} menit (${logbook.JAM_MULAI} - ${logbook.JAM_SELESAI || 'Belum selesai'})`;
+                    }
+                    }
+                    
+                    // Fallback
+                    const decimal = parseFloat(logbook.JAM_KERJA);
+                    if (!isNaN(decimal)) {
+                    const h = Math.floor(decimal);
+                    const m = Math.round((decimal - h) * 60);
+                    const formatted = m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
+                    return `${formatted} (${logbook.JAM_MULAI} - ${logbook.JAM_SELESAI || 'Belum selesai'})`;
+                    }
+                    
+                    return `${logbook.JAM_MULAI} - ${logbook.JAM_SELESAI || 'Belum selesai'}`;
+                })()}
+                icon="pi pi-clock"
                 />
               </Card>
             </div>
@@ -301,10 +328,10 @@ const LogbookDetailDialog = ({ visible, onHide, logbook }) => {
                 }
                 className="shadow-2"
               >
-                <InfoItem 
-                  label="Jumlah Output" 
-                  value={`${logbook.JUMLAH_OUTPUT} ${logbook.SATUAN || "unit"}`}
-                  icon="pi pi-box" 
+                <InfoItem
+                label="Output"
+                value={`${Math.floor(logbook.JUMLAH_OUTPUT || 0)} unit`}
+                icon="pi pi-chart-bar"
                 />
                 <InfoItem 
                   label="Status" 
