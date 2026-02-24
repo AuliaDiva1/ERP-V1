@@ -83,7 +83,7 @@ app.use("/api/master-rak", masterRakRoutes);
 app.use("/api/stok-lokasi", stokLokasiRoutes);
 
 // --- ROUTES TRANSAKSI & OPERASIONAL ---
-app.use("/api/tr-barang-masuk", trBarangMasukRoutes);     // Tambah stok
+app.use("/api/barang-masuk", trBarangMasukRoutes);     // Tambah stok
 app.use("/api/tr-barang-keluar", trBarangKeluarRoutes);   // Kurangi stok
 app.use("/api/inv-pembelian", invPembelianRoutes);       // Tagihan Vendor
 app.use("/api/inv-pengiriman", invPengirimanRoutes);     // SJ Header
