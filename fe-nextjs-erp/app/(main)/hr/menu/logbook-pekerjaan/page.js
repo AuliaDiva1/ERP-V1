@@ -396,69 +396,69 @@ export default function LogbookPekerjaanPage() {
       sortable: true
     },
     {
-      field: "JAM_MULAI",
-      header: "Jam Mulai",
-      body: (rowData) => {
+    field: "JAM_MULAI",
+    header: "Jam Mulai",
+    body: (rowData) => {
         if (!rowData.JAM_MULAI) return "-";
         // ✅ Remove seconds (:00) - format HH:MM only
         return rowData.JAM_MULAI.substring(0, 5);
-      },
-      style: { width: "100px" },
-      sortable: true
+    },
+    style: { width: "100px" },
+    sortable: true
     },
     {
-      field: "JAM_SELESAI",
-      header: "Jam Selesai",
-      body: (rowData) => {
+    field: "JAM_SELESAI",
+    header: "Jam Selesai",
+    body: (rowData) => {
         if (!rowData.JAM_SELESAI) return "-";
         // ✅ Remove seconds (:00) - format HH:MM only
         return rowData.JAM_SELESAI.substring(0, 5);
-      },
-      style: { width: "100px" },
-      sortable: true
+    },
+    style: { width: "100px" },
+    sortable: true
     },
     {
-      field: "JAM_KERJA",
-      header: "Total Jam",
-      body: (rowData) => {
+    field: "JAM_KERJA",
+    header: "Total Jam",
+    body: (rowData) => {
         if (!rowData.JAM_KERJA) return "-";
         
         const parts = rowData.JAM_KERJA.toString().split(':');
         if (parts.length === 2) {
-          const hours = parseInt(parts[0]) || 0;
-          const minutes = parseInt(parts[1]) || 0;
-          
-          if (hours > 0 && minutes > 0) {
+        const hours = parseInt(parts[0]) || 0;
+        const minutes = parseInt(parts[1]) || 0;
+        
+        if (hours > 0 && minutes > 0) {
             return `${hours} jam ${minutes} menit`;
-          } else if (hours > 0) {
+        } else if (hours > 0) {
             return `${hours} jam`;
-          } else if (minutes > 0) {
+        } else if (minutes > 0) {
             return `${minutes} menit`;
-          }
+        }
         }
         
         // Fallback
         const decimal = parseFloat(rowData.JAM_KERJA);
         if (!isNaN(decimal)) {
-          const h = Math.floor(decimal);
-          const m = Math.round((decimal - h) * 60);
-          return m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
+        const h = Math.floor(decimal);
+        const m = Math.round((decimal - h) * 60);
+        return m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
         }
         
         return rowData.JAM_KERJA;
-      },
-      style: { width: "130px" },
-      sortable: true
+    },
+    style: { width: "130px" },
+    sortable: true
     },
     {
-      field: "JUMLAH_OUTPUT",
-      header: "Output",
-      body: (rowData) => {
+    field: "JUMLAH_OUTPUT",
+    header: "Output",
+    body: (rowData) => {
         const output = Math.floor(rowData.JUMLAH_OUTPUT || 0);
         return `${output} unit`;
-      },
-      style: { width: "100px" },
-      sortable: true
+    },
+    style: { width: "100px" },
+    sortable: true
     },
     {
       field: "AKTIVITAS",
