@@ -28,9 +28,9 @@ import trBarangMasukRoutes from "./routes/trBarangMasukRoutes.js";
 import trBarangKeluarRoutes from "./routes/trBarangKeluarRoutes.js";
 import invPembelianRoutes from "./routes/invPembelianRoutes.js";
 import invPengirimanRoutes from "./routes/invPengirimanRoutes.js"; // Header
-import invPengirimanDRoutes from "./routes/invPengirimanDRoutes.js"; // Detail
 import pembayaranBeliRoutes from "./routes/pembayaranBeliRoutes.js";
 import customerRoutes from "./routes/masterCustomerRoutes.js";
+import masterPerusahaanRoutes from "./routes/masterPerusahaanRoutes.js";
 
 const app = express();
 
@@ -87,8 +87,8 @@ app.use("/api/barang-masuk", trBarangMasukRoutes);     // Tambah stok
 app.use("/api/tr-barang-keluar", trBarangKeluarRoutes);   // Kurangi stok
 app.use("/api/inv-pembelian", invPembelianRoutes);       // Tagihan Vendor
 app.use("/api/inv-pengiriman", invPengirimanRoutes);     // SJ Header
-app.use("/api/inv-pengiriman-detail", invPengirimanDRoutes); // SJ Detail Items
 app.use("/api/pembayaran-beli", pembayaranBeliRoutes);    // Pelunasan Hutang
 app.use("/api/master-customer", customerRoutes);
+app.use("/api/master-perusahaan", masterPerusahaanRoutes);
 
 export default app;
