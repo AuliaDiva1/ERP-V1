@@ -18,7 +18,10 @@ export const getTodayPresensi = async (karyawanId, tanggal) => {
 
 export const checkIn = async (data) => {
   const { LAT_USER, LON_USER, ...insertData } = data;
-  const setting = await db("master_perusahaan").where("ID_PERUSAHAAN", 2).first();
+  
+  // Mengambil setting perusahaan yang paling terakhir ditambahkan
+  const setting = await db("master_perusahaan").orderBy("ID_PERUSAHAAN", "desc").first();
+  
   if (!setting) throw new Error("Setting perusahaan tidak ditemukan.");
 
   const jarakMeter = calculateDistance(LAT_USER, LON_USER, setting.LAT_KANTOR, setting.LON_KANTOR);
@@ -43,7 +46,9 @@ export const checkIn = async (data) => {
 
 export const checkOut = async (karyawanId, tanggal, data) => {
   const { LAT_USER, LON_USER, ...updateData } = data;
-  const setting = await db("master_perusahaan").where("ID_PERUSAHAAN", 2).first();
+  
+  // Mengambil setting perusahaan yang paling terakhir ditambahkan
+  const setting = await db("master_perusahaan").orderBy("ID_PERUSAHAAN", "desc").first();
   
   const jarakMeter = calculateDistance(LAT_USER, LON_USER, setting.LAT_KANTOR, setting.LON_KANTOR);
   if (jarakMeter > setting.RADIUS_METER) {
