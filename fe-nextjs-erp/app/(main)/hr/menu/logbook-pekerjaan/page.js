@@ -8,6 +8,7 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Tag } from "primereact/tag";
 import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
+import { Message } from "primereact/message";
 
 import ToastNotifier from "../../../../components/ToastNotifier";
 import HeaderBar from "../../../../components/headerbar";
@@ -15,6 +16,7 @@ import CustomDataTable from "../../../../components/DataTable";
 import FormLogbook from "./components/FormLogbook";
 import LogbookDetailDialog from "./components/LogbookDetailDialog";
 import LogbookValidasiDialog from "./components/LogbookValidasiDialog";
+import LogbookRevisiDialog from "./components/LogbookRevisiDialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -32,6 +34,7 @@ export default function LogbookPekerjaanPage() {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [validasiVisible, setValidasiVisible] = useState(false);
+  const [revisiVisible, setRevisiVisible] = useState(false);
   const [hasAccess, setHasAccess] = useState(true);
 
   // Filter states
@@ -245,7 +248,7 @@ export default function LogbookPekerjaanPage() {
       console.error(err);
       
       if (err.response?.status === 403) {
-        toastRef.current?.showToast("01", "Anda tidak memiliki izin untuk melakukan aksi ini");
+        toastRef.current?.showToast("01", err.response?.data?.message || "Anda tidak memiliki izin untuk melakukan aksi ini");
       } else {
         toastRef.current?.showToast("01", err.response?.data?.message || "Gagal menyimpan logbook");
       }
@@ -276,6 +279,47 @@ export default function LogbookPekerjaanPage() {
         } catch (err) {
           console.error(err);
           toastRef.current?.showToast("01", err.response?.data?.message || "Gagal submit logbook");
+        }
+      },
+    });
+  };
+
+  // ✅ NEW: Handle Revisi Logbook
+  const handleReviseLogbook = (rowData) => {
+    confirmDialog({
+      message: (
+        <div>
+          <p className="mb-3">Revisi logbook yang di-reject?</p>
+          <div className="surface-100 p-3 border-round">
+            <small className="text-600">
+              Status akan berubah ke <strong>Draft</strong>. 
+              Anda bisa edit dan submit ulang setelah revisi.
+            </small>
+          </div>
+        </div>
+      ),
+      header: "Konfirmasi Revisi",
+      icon: "pi pi-refresh",
+      acceptLabel: "Ya, Revisi",
+      rejectLabel: "Batal",
+      acceptClassName: "p-button-warning",
+      accept: async () => {
+        try {
+          const res = await axios.post(
+            `${API_URL}/logbook-pekerjaan/${rowData.ID}/revise`,
+            { alasan_revisi: "Revisi setelah rejected oleh HR" },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          if (res.data.status === "00") {
+            toastRef.current?.showToast("00", "Logbook berhasil direvisi. Status berubah ke Draft, silakan edit dan submit ulang.");
+            await fetchLogbook(token);
+          } else {
+            toastRef.current?.showToast("01", res.data.message || "Gagal revisi logbook");
+          }
+        } catch (err) {
+          console.error(err);
+          toastRef.current?.showToast("01", err.response?.data?.message || "Gagal revisi logbook");
         }
       },
     });
@@ -396,69 +440,66 @@ export default function LogbookPekerjaanPage() {
       sortable: true
     },
     {
-    field: "JAM_MULAI",
-    header: "Jam Mulai",
-    body: (rowData) => {
+      field: "JAM_MULAI",
+      header: "Jam Mulai",
+      body: (rowData) => {
         if (!rowData.JAM_MULAI) return "-";
-        // ✅ Remove seconds (:00) - format HH:MM only
         return rowData.JAM_MULAI.substring(0, 5);
-    },
-    style: { width: "100px" },
-    sortable: true
+      },
+      style: { width: "100px" },
+      sortable: true
     },
     {
-    field: "JAM_SELESAI",
-    header: "Jam Selesai",
-    body: (rowData) => {
+      field: "JAM_SELESAI",
+      header: "Jam Selesai",
+      body: (rowData) => {
         if (!rowData.JAM_SELESAI) return "-";
-        // ✅ Remove seconds (:00) - format HH:MM only
         return rowData.JAM_SELESAI.substring(0, 5);
-    },
-    style: { width: "100px" },
-    sortable: true
+      },
+      style: { width: "100px" },
+      sortable: true
     },
     {
-    field: "JAM_KERJA",
-    header: "Total Jam",
-    body: (rowData) => {
+      field: "JAM_KERJA",
+      header: "Total Jam",
+      body: (rowData) => {
         if (!rowData.JAM_KERJA) return "-";
         
         const parts = rowData.JAM_KERJA.toString().split(':');
         if (parts.length === 2) {
-        const hours = parseInt(parts[0]) || 0;
-        const minutes = parseInt(parts[1]) || 0;
-        
-        if (hours > 0 && minutes > 0) {
+          const hours = parseInt(parts[0]) || 0;
+          const minutes = parseInt(parts[1]) || 0;
+          
+          if (hours > 0 && minutes > 0) {
             return `${hours} jam ${minutes} menit`;
-        } else if (hours > 0) {
+          } else if (hours > 0) {
             return `${hours} jam`;
-        } else if (minutes > 0) {
+          } else if (minutes > 0) {
             return `${minutes} menit`;
-        }
+          }
         }
         
-        // Fallback
         const decimal = parseFloat(rowData.JAM_KERJA);
         if (!isNaN(decimal)) {
-        const h = Math.floor(decimal);
-        const m = Math.round((decimal - h) * 60);
-        return m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
+          const h = Math.floor(decimal);
+          const m = Math.round((decimal - h) * 60);
+          return m > 0 ? `${h} jam ${m} menit` : `${h} jam`;
         }
         
         return rowData.JAM_KERJA;
-    },
-    style: { width: "130px" },
-    sortable: true
+      },
+      style: { width: "130px" },
+      sortable: true
     },
     {
-    field: "JUMLAH_OUTPUT",
-    header: "Output",
-    body: (rowData) => {
+      field: "JUMLAH_OUTPUT",
+      header: "Output",
+      body: (rowData) => {
         const output = Math.floor(rowData.JUMLAH_OUTPUT || 0);
         return `${output} unit`;
-    },
-    style: { width: "100px" },
-    sortable: true
+      },
+      style: { width: "100px" },
+      sortable: true
     },
     {
       field: "AKTIVITAS",
@@ -500,7 +541,7 @@ export default function LogbookPekerjaanPage() {
             }}
           />
           
-          {/* Edit - hanya jika status Draft dan milik user */}
+          {/* Edit - hanya jika status Draft */}
           {rowData.STATUS === "Draft" && (
             <Button
               icon="pi pi-pencil"
@@ -512,6 +553,18 @@ export default function LogbookPekerjaanPage() {
                 setSelectedLogbook(rowData);
                 setDialogVisible(true);
               }}
+            />
+          )}
+
+          {/* ✅ REVISI - hanya jika status Rejected */}
+          {rowData.STATUS === "Rejected" && (
+            <Button
+              icon="pi pi-refresh"
+              size="small"
+              severity="warning"
+              tooltip="Revisi & Submit Ulang"
+              tooltipOptions={{ position: "top" }}
+              onClick={() => handleReviseLogbook(rowData)}
             />
           )}
 
@@ -555,7 +608,7 @@ export default function LogbookPekerjaanPage() {
           )}
         </div>
       ),
-      style: { width: "220px" },
+      style: { width: "260px" },
     },
   ];
 
@@ -572,7 +625,6 @@ export default function LogbookPekerjaanPage() {
     );
   }
 
-  // Hanya PRODUKSI, GUDANG, KEUANGAN yang bisa create
   const canCreate = ["PRODUKSI", "GUDANG", "KEUANGAN", "SUPERADMIN"].includes(userRole);
 
   return (
@@ -580,7 +632,32 @@ export default function LogbookPekerjaanPage() {
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-3">Logbook Pekerjaan</h3>
+      <div className="flex align-items-center justify-content-between mb-3">
+        <h3 className="text-xl font-semibold m-0">Logbook Pekerjaan</h3>
+        <Button
+          icon="pi pi-history"
+          label="Riwayat Revisi"
+          className="p-button-outlined p-button-secondary"
+          size="small"
+          onClick={() => {
+            if (logbook.length > 0) {
+              setSelectedLogbook(logbook[0]);
+              setRevisiVisible(true);
+            } else {
+              toastRef.current?.showToast("01", "Pilih logbook terlebih dahulu");
+            }
+          }}
+        />
+      </div>
+
+      {/* Info Message for Rejected Logbooks */}
+      {logbook.filter(l => l.STATUS === "Rejected").length > 0 && (
+        <Message 
+          severity="warn" 
+          text={`Anda memiliki ${logbook.filter(l => l.STATUS === "Rejected").length} logbook yang di-reject. Klik tombol "Revisi" untuk memperbaiki dan submit ulang.`}
+          className="mb-3"
+        />
+      )}
 
       <div className="mb-4">
         <HeaderBar
@@ -642,7 +719,7 @@ export default function LogbookPekerjaanPage() {
             className="w-full"
           />
         </div>
-        <div className="col-12 md:col-2 flex align-items-end">
+        <div className="col-12 md:col-3 flex align-items-end">
           <Button
             label="Reset Filter"
             icon="pi pi-refresh"
@@ -689,6 +766,16 @@ export default function LogbookPekerjaanPage() {
         }}
         logbook={selectedLogbook}
         onValidasi={handleValidasi}
+      />
+
+      {/* ✅ NEW: Dialog Riwayat Revisi */}
+      <LogbookRevisiDialog
+        visible={revisiVisible}
+        onHide={() => {
+          setRevisiVisible(false);
+          setSelectedLogbook(null);
+        }}
+        logbook={selectedLogbook}
       />
     </div>
   );

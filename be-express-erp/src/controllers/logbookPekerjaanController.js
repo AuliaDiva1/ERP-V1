@@ -617,3 +617,88 @@ export const getMyAssignedBatches = async (req, res) => {
     });
   }
 };
+
+/**
+ * 🔹 Revise logbook (untuk logbook yang rejected)
+ */
+export const reviseLogbook = async (req, res) => {
+  try {
+    const logbookId = req.params.id;
+    const karyawanId = req.user?.karyawan_id;
+
+    const existingLogbook = await LogbookModel.getLogbookById(logbookId);
+
+    if (!existingLogbook) {
+      return res.status(404).json({
+        status: status.GAGAL,
+        message: "Logbook tidak ditemukan",
+        datetime: datetime(),
+      });
+    }
+
+    // ✅ Validasi: hanya pemilik yang bisa revisi
+    if (existingLogbook.KARYAWAN_ID !== karyawanId) {
+      return res.status(403).json({
+        status: status.GAGAL,
+        message: "Anda tidak memiliki izin untuk merevisi logbook ini",
+        datetime: datetime(),
+      });
+    }
+
+    // ✅ Validasi: hanya Rejected yang bisa direvisi
+    if (existingLogbook.STATUS !== "Rejected") {
+      return res.status(400).json({
+        status: status.BAD_REQUEST,
+        message: `Hanya logbook dengan status Rejected yang dapat direvisi`,
+        datetime: datetime(),
+      });
+    }
+
+    const { alasan_revisi } = req.body;
+
+    const revised = await LogbookModel.reviseLogbook(
+      logbookId,
+      karyawanId,
+      alasan_revisi || "Revisi setelah rejected"
+    );
+
+    return res.status(200).json({
+      status: status.SUKSES,
+      message: "Logbook berhasil direvisi. Status berubah ke Draft, silakan edit dan submit ulang.",
+      datetime: datetime(),
+      data: revised,
+    });
+  } catch (err) {
+    console.error("Error reviseLogbook:", err);
+    return res.status(500).json({
+      status: status.GAGAL,
+      message: `Terjadi kesalahan server: ${err.message}`,
+      datetime: datetime(),
+    });
+  }
+};
+
+/**
+ * 🔹 Get history revisi logbook
+ */
+export const getLogbookRevisi = async (req, res) => {
+  try {
+    const { logbook_id } = req.params;
+    const data = await LogbookModel.getLogbookRevisi(logbook_id);
+
+    return res.status(200).json({
+      status: status.SUKSES,
+      message: "History revisi berhasil diambil",
+      datetime: datetime(),
+      total: data.length,
+      data,
+    });
+  } catch (err) {
+    console.error("Error getLogbookRevisi:", err);
+    return res.status(500).json({
+      status: status.GAGAL,
+      message: `Terjadi kesalahan server: ${err.message}`,
+      datetime: datetime(),
+    });
+  }
+};
