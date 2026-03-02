@@ -27,6 +27,7 @@ const AppMenu = () => {
                 label: "UTAMA",
                 items: [
                     { label: "Dashboard Utama", icon: "pi pi-fw pi-home", to: "/superadmin/dashboard" },
+                    { label: "Master Perusahaan", icon: "pi pi-fw pi-users", to: "/master/perusahaan" },
                     { label: "Analitik Bisnis", icon: "pi pi-fw pi-chart-bar", to: "/superadmin/analytics" },
                     { label: "Master Karyawan", icon: "pi pi-fw pi-users", to: "/master/karyawan" },
                 ]
@@ -70,6 +71,7 @@ const AppMenu = () => {
                 items: [
                     { label: "Data Vendor", icon: "pi pi-fw pi-truck", to: "/master/vendor" },
                     { label: "Invoice Pembelian", icon: "pi pi-fw pi-file-invoice", to: "/master/invpembelian" },
+                    { label: "Invoice Pengiriman", icon: "pi pi-fw pi-file-invoice", to: "/master/invpengiriman" },
                 ]
             },
             {
