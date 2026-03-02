@@ -31,6 +31,7 @@ import invPengirimanRoutes from "./routes/invPengirimanRoutes.js"; // Header
 import pembayaranBeliRoutes from "./routes/pembayaranBeliRoutes.js";
 import customerRoutes from "./routes/masterCustomerRoutes.js";
 import masterPerusahaanRoutes from "./routes/masterPerusahaanRoutes.js";
+import masterPresensiRoutes from "./routes/masterPresensiRoutes.js";
 
 const app = express();
 
@@ -90,5 +91,6 @@ app.use("/api/inv-pengiriman", invPengirimanRoutes);     // SJ Header
 app.use("/api/pembayaran-beli", pembayaranBeliRoutes);    // Pelunasan Hutang
 app.use("/api/master-customer", customerRoutes);
 app.use("/api/master-perusahaan", masterPerusahaanRoutes);
+app.use("/api/master-presensi", masterPresensiRoutes);
 
 export default app;

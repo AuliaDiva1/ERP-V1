@@ -1,39 +1,51 @@
 import { db } from "../core/config/knex.js";
 
-// Ambil semua data perusahaan (List)
+// 1. Ambil semua data (List)
 export const getAllPerusahaan = async () => {
-  return await db("master_perusahaan").select("*").orderBy("ID_PERUSAHAAN", "desc");
+  return await db("master_perusahaan")
+    .select("*")
+    .orderBy("ID_PERUSAHAAN", "desc");
 };
 
-// Ambil satu data berdasarkan ID
+// 2. Ambil satu data berdasarkan ID (Penting: Gunakan ID_PERUSAHAAN)
 export const getPerusahaanById = async (id) => {
-  return await db("master_perusahaan").where({ ID_PERUSAHAAN: id }).first();
+  return await db("master_perusahaan")
+    .where("ID_PERUSAHAAN", id)
+    .first();
 };
 
-// Tambah data baru (CREATE)
+// 3. Tambah data baru (CREATE)
 export const createPerusahaan = async (data) => {
+  // Destructuring untuk memastikan ID dan timestamp tidak diinput manual
   const { ID_PERUSAHAAN, created_at, updated_at, ...payload } = data;
-  const [id] = await db("master_perusahaan").insert({
+  
+  const [newId] = await db("master_perusahaan").insert({
     ...payload,
     created_at: db.fn.now(),
     updated_at: db.fn.now(),
   });
-  return getPerusahaanById(id);
+  
+  // Mengembalikan data yang baru saja dibuat
+  return await getPerusahaanById(newId);
 };
 
-// Update data (EDIT)
+// 4. Update data (EDIT)
 export const updatePerusahaan = async (id, data) => {
   const { ID_PERUSAHAAN, created_at, updated_at, ...payload } = data;
+  
   await db("master_perusahaan")
-    .where({ ID_PERUSAHAAN: id })
+    .where("ID_PERUSAHAAN", id)
     .update({
       ...payload,
       updated_at: db.fn.now(),
     });
-  return getPerusahaanById(id);
+    
+  return await getPerusahaanById(id);
 };
 
-// Hapus data (DELETE)
+// 5. Hapus data (DELETE)
 export const deletePerusahaan = async (id) => {
-  return await db("master_perusahaan").where({ ID_PERUSAHAAN: id }).del();
+  return await db("master_perusahaan")
+    .where("ID_PERUSAHAAN", id)
+    .del();
 };
