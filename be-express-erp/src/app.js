@@ -13,6 +13,7 @@ import batchRoutes from "./routes/masterBatchRoutes.js";
 import batchKaryawanRoutes from "./routes/batchKaryawanRoutes.js";
 import logbookRoutes from "./routes/logbookPekerjaanRoutes.js";
 import masterPengajuanRoutes from "./routes/masterPengajuanRoutes.js";
+import rekapitulasiKinerjaRoutes from "./routes/rekapitulasiKinerjaRoutes.js";
 
 // Import Rute Baru untuk Inventaris
 import masterJenisBarangRoutes from "./routes/masterJenisBarangRoutes.js";
@@ -72,6 +73,7 @@ app.use("/api/master-karyawan", masterKaryawanRoutes);
 app.use("/api/master-batch", batchRoutes);
 app.use("/api/batch-karyawan", batchKaryawanRoutes);
 app.use("/api/logbook-pekerjaan", logbookRoutes);
+app.use("/api/rekapitulasi-kinerja", rekapitulasiKinerjaRoutes);
 app.use("/api/master-pengajuan", masterPengajuanRoutes);
 
 

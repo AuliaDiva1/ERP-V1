@@ -82,7 +82,9 @@ const AppMenu = () => {
                     { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
                     { label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/master/logbook-pekerjaan" },
                     { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/master/validasi-logbook" },
-                    { label: "Master Pengajuan", icon: "pi pi-fw pi-file", to: "/master/master_pengajuan" }
+                    { label: "Master Pengajuan", icon: "pi pi-fw pi-file", to: "/master/master_pengajuan" },
+                    { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/master/rekapitulasi-kinerja" }
+
 
                 ]
             },
@@ -185,7 +187,9 @@ const AppMenu = () => {
                             { label: "Rencana Produksi", icon: "pi pi-fw pi-list", to: "/produksi/rencana" },
                             { label: "Jadwal Produksi", icon: "pi pi-fw pi-calendar", to: "/produksi/jadwal" },
                             { label: "Kapasitas Produksi", icon: "pi pi-fw pi-chart-bar", to: "/produksi/kapasitas" },
-                            { Label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/produksi/menu/logbook-pekerjaan" }
+                            { Label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/produksi/menu/logbook-pekerjaan" },
+                            { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/produksi/menu/rekapitulasi-kinerja" }
+
                         ]
                     },
                     {
@@ -288,7 +292,8 @@ const AppMenu = () => {
                     { label: "Lembur", icon: "pi pi-fw pi-clock", to: "/hr/lembur" },
                     { label: "Cuti & Izin", icon: "pi pi-fw pi-calendar-minus", to: "/hr/cuti" },
                     { label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file", to: "/hr/menu/logbook-pekerjaan" },
-                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/hr/menu/validasi-logbook" }
+                    { label: "Validasi Logbook", icon: "pi pi-fw pi-check-circle", to: "/hr/menu/validasi-logbook" },
+                    { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/hr/menu/rekapitulasi-kinerja" }
                 ]
             },
             {
