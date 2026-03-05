@@ -68,4 +68,18 @@ router.get(
   LogbookController.getLogbookById
 );
 
+// ✅ POST: Revise logbook (ubah Rejected → Draft)
+router.post(
+  "/:id/revise",
+  checkRole(["SUPERADMIN", "PRODUKSI", "GUDANG", "KEUANGAN"]),
+  LogbookController.reviseLogbook
+);
+
+// ✅ GET: History revisi logbook
+router.get(
+  "/:logbook_id/revisi",
+  checkRole(["SUPERADMIN", "HR", "PRODUKSI", "GUDANG", "KEUANGAN"]),
+  LogbookController.getLogbookRevisi
+);
+
 export default router;

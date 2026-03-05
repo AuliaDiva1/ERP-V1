@@ -58,7 +58,6 @@ export const getAllLogbook = async (filters = {}) => {
 
 /**
  * 🔹 Get logbook by ID
- * ✅ FIXED: Explicit column selection to avoid l.* override issue
  */
 export const getLogbookById = async (id) => {
   const result = await db("logbook_pekerjaan as l")
@@ -66,9 +65,6 @@ export const getLogbookById = async (id) => {
     .leftJoin("master_batch as b", "l.BATCH_ID", "b.BATCH_ID")
     .leftJoin("master_karyawan as creator", "l.CREATED_BY_KARYAWAN", "creator.KARYAWAN_ID")
     .select(
-      // ========================================
-      // LOGBOOK PEKERJAAN COLUMNS (EXPLICIT)
-      // ========================================
       "l.ID as ID",
       "l.LOGBOOK_ID as LOGBOOK_ID",
       "l.KARYAWAN_ID as KARYAWAN_ID",
@@ -87,37 +83,20 @@ export const getLogbookById = async (id) => {
       "l.UPDATED_BY_KARYAWAN as UPDATED_BY_KARYAWAN",
       "l.created_at as created_at",
       "l.updated_at as updated_at",
-      
-      // ========================================
-      // MASTER KARYAWAN COLUMNS (EXPLICIT)
-      // ========================================
       "k.NAMA as NAMA_KARYAWAN",
       "k.NIK as NIK",
-      "k.EMAIL as EMAIL",                    // ✅ CRITICAL - EXPLICIT
-      "k.DEPARTEMEN as DEPARTEMEN",          // ✅ CRITICAL - EXPLICIT
-      "k.JABATAN as JABATAN",                // ✅ CRITICAL - EXPLICIT
+      "k.EMAIL as EMAIL",
+      "k.DEPARTEMEN as DEPARTEMEN",
+      "k.JABATAN as JABATAN",
       "k.NO_TELP as NO_TELP",
-      
-      // ========================================
-      // MASTER BATCH COLUMNS (EXPLICIT)
-      // ========================================
       "b.NAMA_BATCH as NAMA_BATCH",
       "b.KATEGORI_PRODUK as KATEGORI_PRODUK",
       "b.TARGET_JUMLAH as TARGET_JUMLAH",
       "b.SATUAN as SATUAN",
-      
-      // ========================================
-      // CREATOR INFO
-      // ========================================
       "creator.NAMA as CREATED_BY_NAMA"
     )
     .where("l.ID", id)
     .first();
-
-  // ✅ Debug log
-  if (result) {
-    console.log("🔍 getLogbookById - EMAIL:", result.EMAIL, "| JABATAN:", result.JABATAN);
-  }
 
   return result;
 };
@@ -174,25 +153,71 @@ export const deleteLogbook = async (id) => {
 
 /**
  * 🔹 Submit logbook (ubah status dari Draft ke Submitted)
+ * ✅ SOLUSI 1: Update DATA_SESUDAH saat submit ulang setelah revisi
  */
 export const submitLogbook = async (id) => {
-  await db("logbook_pekerjaan")
-    .where({ ID: id })
-    .update({
-      STATUS: "Submitted",
-      updated_at: db.fn.now(),
-    });
+  return await db.transaction(async (trx) => {
+    // 1. Get logbook data
+    const logbook = await trx("logbook_pekerjaan")
+      .where("ID", id)
+      .first();
 
-  return getLogbookById(id);
+    if (!logbook) {
+      throw new Error("Logbook tidak ditemukan");
+    }
+
+    if (logbook.STATUS !== "Draft") {
+      throw new Error("Hanya logbook Draft yang bisa di-submit");
+    }
+
+    // 2. Update status ke Submitted
+    await trx("logbook_pekerjaan")
+      .where("ID", id)
+      .update({
+        STATUS: "Submitted",
+        updated_at: trx.fn.now(),
+      });
+
+    // 3. Update DATA_SESUDAH di revisi terakhir (jika ada)
+    const lastRevisi = await trx("logbook_revisi")
+      .where({
+        LOGBOOK_ID: logbook.LOGBOOK_ID,
+        STATUS_SESUDAH: "Draft"
+      })
+      .orderBy("REVISI_KE", "desc")
+      .first();
+
+    if (lastRevisi && !lastRevisi.DATA_SESUDAH) {
+      const dataSesudah = JSON.stringify({
+        TANGGAL: logbook.TANGGAL,
+        JAM_MULAI: logbook.JAM_MULAI,
+        JAM_SELESAI: logbook.JAM_SELESAI,
+        JAM_KERJA: logbook.JAM_KERJA,
+        AKTIVITAS: logbook.AKTIVITAS,
+        DESKRIPSI: logbook.DESKRIPSI,
+        JUMLAH_OUTPUT: logbook.JUMLAH_OUTPUT,
+        KENDALA: logbook.KENDALA,
+        FOTO_BUKTI: logbook.FOTO_BUKTI,
+      });
+
+      await trx("logbook_revisi")
+        .where("ID", lastRevisi.ID)
+        .update({
+          DATA_SESUDAH: dataSesudah,
+        });
+
+      console.log(`✅ DATA_SESUDAH updated for revision ${lastRevisi.REVISI_KE} of ${logbook.LOGBOOK_ID}`);
+    }
+
+    return getLogbookById(id);
+  });
 };
 
 /**
  * 🔹 Approve/Reject logbook
- * ✅ FIXED: Anti double-count dengan SUM dari logbook approved
  */
 export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, catatan) => {
   return await db.transaction(async (trx) => {
-    // 1. Cek logbook yang akan divalidasi
     const logbook = await trx("logbook_pekerjaan")
       .where("LOGBOOK_ID", logbookId)
       .first();
@@ -201,12 +226,10 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
       throw new Error("Logbook tidak ditemukan");
     }
 
-    // ✅ CRITICAL: Cegah double approve
     if (logbook.STATUS === "Approved" && aksi === "Approved") {
       throw new Error("Logbook ini sudah di-approve sebelumnya");
     }
 
-    // 2. Update status logbook
     const newStatus = aksi === "Approved" ? "Approved" : "Rejected";
     await trx("logbook_pekerjaan")
       .where("LOGBOOK_ID", logbookId)
@@ -215,7 +238,6 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
         updated_at: trx.fn.now(),
       });
 
-    // 3. Insert ke logbook_validasi
     await trx("logbook_validasi").insert({
       LOGBOOK_ID: logbookId,
       AKSI: aksi,
@@ -223,17 +245,12 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
       CATATAN: catatan,
     });
 
-    // 4. Jika approved, RECALCULATE total dari SUM
     if (aksi === "Approved") {
       const batch = await trx("master_batch")
         .where("BATCH_ID", logbook.BATCH_ID)
         .first();
 
       if (batch) {
-        // ========================================
-        // ✅ SOLUSI ANTI DOUBLE-COUNT
-        // ========================================
-        // Hitung ULANG total output dari semua logbook approved
         const result = await trx("logbook_pekerjaan")
           .where({
             BATCH_ID: logbook.BATCH_ID,
@@ -243,20 +260,12 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
 
         const totalApproved = parseInt(result[0]?.total) || 0;
 
-        console.log("=== RECALCULATE BATCH PROGRESS ===");
-        console.log("Batch ID:", logbook.BATCH_ID);
-        console.log("Old JUMLAH_SELESAI:", batch.JUMLAH_SELESAI);
-        console.log("New JUMLAH_SELESAI (from SUM):", totalApproved);
-        console.log("==================================");
-
-        // Update dengan total yang BENAR
         await trx("master_batch")
           .where("BATCH_ID", logbook.BATCH_ID)
           .update({
             JUMLAH_SELESAI: totalApproved,
           });
 
-        // ✅ Auto-update status batch
         let newBatchStatus = batch.STATUS_BATCH;
         let additionalUpdates = {};
 
@@ -279,14 +288,12 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
       }
     }
 
-    // ✅ BONUS: Jika di-reject setelah approved, RECALCULATE juga
     if (aksi === "Rejected" && logbook.STATUS === "Approved") {
       const batch = await trx("master_batch")
         .where("BATCH_ID", logbook.BATCH_ID)
         .first();
 
       if (batch) {
-        // Hitung ulang total setelah reject
         const result = await trx("logbook_pekerjaan")
           .where({
             BATCH_ID: logbook.BATCH_ID,
@@ -301,11 +308,6 @@ export const validateLogbook = async (logbookId, validatorKaryawanId, aksi, cata
           .update({
             JUMLAH_SELESAI: totalApproved,
           });
-
-        console.log("=== RECALCULATE AFTER REJECT ===");
-        console.log("Batch ID:", logbook.BATCH_ID);
-        console.log("New JUMLAH_SELESAI:", totalApproved);
-        console.log("================================");
       }
     }
 
@@ -330,7 +332,6 @@ export const getLogbookValidasi = async (logbookId) => {
 
 /**
  * 🔹 Calculate JAM_KERJA dari JAM_MULAI dan JAM_SELESAI
- * ✅ Format: HH:MM (jam dan menit)
  */
 export const calculateJamKerja = (jamMulai, jamSelesai) => {
   if (!jamMulai || !jamSelesai) return "0:00";
@@ -346,6 +347,78 @@ export const calculateJamKerja = (jamMulai, jamSelesai) => {
   const hours = Math.floor(diffMinutes / 60);
   const minutes = diffMinutes % 60;
 
-  // ✅ Format: "5:17" (5 jam 17 menit)
   return `${hours}:${String(minutes).padStart(2, '0')}`;
+};
+
+/**
+ * 🔹 Revise logbook (untuk logbook yang rejected)
+ */
+export const reviseLogbook = async (id, karyawanId, alasanRevisi) => {
+  return await db.transaction(async (trx) => {
+    const logbook = await trx("logbook_pekerjaan")
+      .where("ID", id)
+      .first();
+
+    if (!logbook) {
+      throw new Error("Logbook tidak ditemukan");
+    }
+
+    if (logbook.STATUS !== "Rejected") {
+      throw new Error("Hanya logbook dengan status Rejected yang bisa direvisi");
+    }
+
+    const revisiCount = await trx("logbook_revisi")
+      .where("LOGBOOK_ID", logbook.LOGBOOK_ID)
+      .count("ID as total");
+    
+    const revisiKe = parseInt(revisiCount[0]?.total || 0) + 1;
+
+    await trx("logbook_revisi").insert({
+      LOGBOOK_ID: logbook.LOGBOOK_ID,
+      REVISI_KE: revisiKe,
+      STATUS_SEBELUM: "Rejected",
+      STATUS_SESUDAH: "Draft",
+      DATA_SEBELUM: JSON.stringify({
+        TANGGAL: logbook.TANGGAL,
+        JAM_MULAI: logbook.JAM_MULAI,
+        JAM_SELESAI: logbook.JAM_SELESAI,
+        JAM_KERJA: logbook.JAM_KERJA,
+        AKTIVITAS: logbook.AKTIVITAS,
+        DESKRIPSI: logbook.DESKRIPSI,
+        JUMLAH_OUTPUT: logbook.JUMLAH_OUTPUT,
+        KENDALA: logbook.KENDALA,
+        FOTO_BUKTI: logbook.FOTO_BUKTI,
+      }),
+      DATA_SESUDAH: null,
+      REVISED_BY_KARYAWAN: karyawanId,
+      ALASAN_REVISI: alasanRevisi,
+    });
+
+    await trx("logbook_pekerjaan")
+      .where("ID", id)
+      .update({
+        STATUS: "Draft",
+        UPDATED_BY_KARYAWAN: karyawanId,
+        updated_at: trx.fn.now(),
+      });
+
+    console.log(`✅ Logbook ${logbook.LOGBOOK_ID} direvisi (revisi ke-${revisiKe})`);
+
+    return getLogbookById(id);
+  });
+};
+
+/**
+ * 🔹 Get history revisi logbook
+ */
+export const getLogbookRevisi = async (logbookId) => {
+  return db("logbook_revisi as lr")
+    .leftJoin("master_karyawan as k", "lr.REVISED_BY_KARYAWAN", "k.KARYAWAN_ID")
+    .select(
+      "lr.*",
+      "k.NAMA as REVISED_BY_NAMA",
+      "k.JABATAN as REVISED_BY_JABATAN"
+    )
+    .where("lr.LOGBOOK_ID", logbookId)
+    .orderBy("lr.REVISI_KE", "asc");
 };

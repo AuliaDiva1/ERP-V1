@@ -496,7 +496,17 @@ export default function LandingERP() {
         </div>
       </section>
 
-
+      {/* ================= LOGO TICKER ================= */}
+      <section style={{ padding: '32px 24px', background: '#f8faff', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>
+          Dipercaya oleh 1.200+ bisnis di seluruh Indonesia
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '32px 48px', opacity: 0.5 }}>
+          {['Tokopedia', 'Gojek', 'Shopee', 'BCA', 'Mandiri', 'Grab'].map(brand => (
+            <span key={brand} style={{ fontSize: '1.1rem', fontWeight: 800, color: '#64748b', letterSpacing: '-0.03em' }}>{brand}</span>
+          ))}
+        </div>
+      </section>
 
       {/* ================= FEATURES ================= */}
       <section style={{ padding: '80px 24px', background: '#fff' }}>
@@ -586,7 +596,42 @@ export default function LandingERP() {
         </div>
       </section>
 
-
+      {/* ================= METRICS ================= */}
+      <section style={{ padding: '80px 24px', background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat' }} />
+        <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', color: '#fff', marginBottom: 8, letterSpacing: '-0.02em' }}>
+              Angka yang Bicara
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1rem' }}>Kepercayaan ribuan bisnis di seluruh Nusantara</p>
+          </div>
+          <div className="grid">
+            {[
+              ['1,200+', 'User Aktif', 'pi-users'],
+              ['45+', 'Korporasi', 'pi-building'],
+              ['10.000+', 'Transaksi/Hari', 'pi-chart-line'],
+              ['99.9%', 'Uptime Server', 'pi-server']
+            ].map(([val, label, icon]) => (
+              <div key={label} className="col-6 lg:col-3 p-2">
+                <div
+                  className="stat-card"
+                  style={{
+                    textAlign: 'center', padding: '28px 16px',
+                    background: 'rgba(255,255,255,0.08)', borderRadius: 16,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    backdropFilter: 'blur(8px)'
+                  }}
+                >
+                  <i className={`pi ${icon}`} style={{ color: 'rgba(165,180,252,1)', fontSize: '1.5rem', marginBottom: 12, display: 'block' }} />
+                  <div style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 800, color: '#fff', lineHeight: 1, marginBottom: 8 }}>{val}</div>
+                  <div style={{ color: 'rgba(199,210,254,0.85)', fontWeight: 500, fontSize: '0.9rem' }}>{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ================= TESTIMONIALS ================= */}
       <section id="testimoni" style={{ padding: '80px 24px', background: '#fff' }}>
