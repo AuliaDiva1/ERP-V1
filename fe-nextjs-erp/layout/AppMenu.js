@@ -42,6 +42,21 @@ if (userRole === "SUPERADMIN") {
                 { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/master/rekapitulasi-kinerja" }
             ]
         },
+                    {
+                label: "PENGGAJIAN (PAYROLL)",
+                icon: "pi pi-fw pi-money-bill",
+                items: [
+                    {
+                        label: "Master Gaji",
+                        icon: "pi pi-fw pi-briefcase",
+                        items: [
+                            { label: "Gaji per Jabatan",    icon: "pi pi-fw pi-briefcase",    to: "/master/gaji-jabatan"   },
+                            { label: "Komponen Gaji",       icon: "pi pi-fw pi-user-edit",    to: "/master/komponen-gaji"  },
+                        ]
+                    },
+                    { label: "Payroll Bulanan",     icon: "pi pi-fw pi-wallet",           to: "/master/master-payroll"        },
+                ]
+            },
         {
             label: "MANAJEMEN GUDANG",
             icon: "pi pi-fw pi-building",
