@@ -141,15 +141,15 @@ const FormPresensiMasuk = ({
   /* ---- Template Dropdown Karyawan ---- */
   const karyawanItemTemplate = (option) => (
     <div className="flex flex-column gap-1 py-1">
-      <span className="font-bold text-sm">{option.label}</span>
-      <span className="text-xs text-primary font-mono">{option.value}</span>
+      <span className="font-semibold text-sm text-900">{option.label}</span>
+      <span className="text-xs text-500">{option.value}</span>
     </div>
   );
 
   const headerElement = (
     <div className="flex align-items-center gap-2">
-      <i className="pi pi-sign-in text-green-600 text-xl"></i>
-      <span className="text-xl font-bold text-slate-800">Presensi Masuk</span>
+      <i className="pi pi-sign-in text-primary text-xl" />
+      <span className="text-xl font-bold text-900">Catat Absen Masuk</span>
     </div>
   );
 
@@ -161,30 +161,30 @@ const FormPresensiMasuk = ({
       modal
       onHide={onHide}
       closable={!isLoading}
-      className="p-fluid shadow-6"
+      className="p-fluid"
     >
       <Toast ref={toast} position="top-center" />
 
       <div className="flex flex-column gap-3 pt-2">
 
         {/* Info Waktu */}
-        <div className="flex justify-content-between align-items-center bg-green-50 p-3 border-round-xl border-1 border-green-200">
+        <div className="surface-50 border-1 surface-border border-round-lg p-3 flex justify-content-between align-items-center">
           <div>
-            <small className="text-500 font-bold uppercase block">Tanggal</small>
-            <span className="font-bold text-slate-700">
+            <small className="text-500 text-xs font-medium uppercase block mb-1">Tanggal</small>
+            <span className="font-semibold text-800 text-sm">
               {new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </span>
           </div>
           <div className="text-right">
-            <small className="text-500 font-bold uppercase block">Jam Masuk</small>
-            <span className="text-xl font-mono font-bold text-green-700">{currentTime}</span>
+            <small className="text-500 text-xs font-medium uppercase block mb-1">Jam Masuk</small>
+            <span className="font-mono font-bold text-primary text-xl">{currentTime}</span>
           </div>
         </div>
 
         {/* Pilih Karyawan */}
         <div className="field mb-0">
-          <label className="font-bold text-sm text-slate-600 mb-2 block">
-            <i className="pi pi-user mr-1"></i> Karyawan
+          <label className="font-medium text-sm text-700 mb-2 block">
+            <i className="pi pi-user mr-1" /> Karyawan
           </label>
           <Dropdown
             value={selectedKaryawanId}
@@ -201,8 +201,8 @@ const FormPresensiMasuk = ({
 
         {/* Status */}
         <div className="field mb-0">
-          <label className="font-bold text-sm text-slate-600 mb-2 block">
-            <i className="pi pi-tag mr-1"></i> Status Kehadiran
+          <label className="font-medium text-sm text-700 mb-2 block">
+            <i className="pi pi-tag mr-1" /> Status Kehadiran
           </label>
           <Dropdown
             value={status}
@@ -217,28 +217,28 @@ const FormPresensiMasuk = ({
 
         {/* GPS */}
         <div className="field mb-0">
-          <label className="font-bold text-sm text-slate-600 mb-2 flex align-items-center gap-2">
-            <i className="pi pi-map-marker"></i> Lokasi GPS
+          <label className="font-medium text-sm text-700 mb-2 flex align-items-center gap-2">
+            <i className="pi pi-map-marker" /> Lokasi GPS
           </label>
           {loadingLokasi ? (
             <ProgressBar mode="indeterminate" style={{ height: "6px" }} className="border-round" />
           ) : (
-            <div
-              className={`p-3 border-round-lg flex align-items-center justify-content-between border-1 ${
-                coords.lat ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
-              }`}
-            >
-              <span className="text-sm font-mono font-bold">
+            <div className={`p-3 border-round border-1 flex align-items-center justify-content-between ${
+              coords.lat ? "surface-50 surface-border" : "bg-red-50 border-red-200"
+            }`}>
+              <span className="text-sm font-mono text-700">
                 {coords.lat
                   ? `${coords.lat}, ${coords.lon}`
                   : gpsError || "Mendeteksi lokasi..."}
               </span>
               <Button
                 icon="pi pi-refresh"
-                className="p-button-text p-button-sm"
+                text
+                size="small"
                 onClick={handleAmbilLokasi}
                 disabled={loadingLokasi || isLoading}
                 tooltip="Refresh GPS"
+                tooltipOptions={{ position: "top" }}
               />
             </div>
           )}
@@ -246,35 +246,41 @@ const FormPresensiMasuk = ({
 
         {/* Foto Selfie */}
         <div className="field mb-0">
-          <label className="font-bold text-sm text-slate-600 mb-2 flex align-items-center gap-2">
-            <i className="pi pi-camera"></i> Foto Selfie
+          <label className="font-medium text-sm text-700 mb-2 flex align-items-center gap-2">
+            <i className="pi pi-camera" /> Foto Selfie
             {status === "Hadir" && <span className="text-red-500 text-xs">(Wajib)</span>}
           </label>
 
           {!previewUrl ? (
             <div
-              className="border-2 border-dashed border-300 border-round-xl p-4 flex flex-column align-items-center justify-content-center cursor-pointer hover:surface-100 transition-all"
+              className="border-2 border-dashed border-300 border-round p-4 flex flex-column align-items-center justify-content-center cursor-pointer hover:surface-100 transition-all"
               onClick={() => !isLoading && fileInputRef.current?.click()}
             >
-              <i className="pi pi-camera text-4xl text-300 mb-2"></i>
+              <i className="pi pi-camera text-3xl text-300 mb-2" />
               <span className="text-sm text-500">Klik untuk ambil / upload foto</span>
             </div>
           ) : (
-            <div className="relative border-round-xl overflow-hidden shadow-3 border-2 border-green-200">
+            <div className="relative border-round overflow-hidden border-1 surface-border">
               <img src={previewUrl} alt="Preview" className="w-full" style={{ maxHeight: "200px", objectFit: "cover" }} />
               <Button
                 icon="pi pi-times"
-                className="p-button-rounded p-button-danger absolute"
+                rounded
+                severity="danger"
+                className="absolute"
                 style={{ top: "8px", right: "8px" }}
                 onClick={resetFoto}
                 tooltip="Hapus foto"
+                tooltipOptions={{ position: "top" }}
               />
               <Button
                 icon="pi pi-refresh"
-                className="p-button-rounded p-button-warning absolute"
+                rounded
+                severity="secondary"
+                className="absolute"
                 style={{ top: "8px", right: "52px" }}
                 onClick={() => fileInputRef.current?.click()}
                 tooltip="Ganti foto"
+                tooltipOptions={{ position: "top" }}
               />
             </div>
           )}
@@ -291,8 +297,8 @@ const FormPresensiMasuk = ({
 
         {/* Keterangan */}
         <div className="field mb-0">
-          <label className="font-bold text-sm text-slate-600 mb-2 block">
-            <i className="pi pi-pencil mr-1"></i> Keterangan
+          <label className="font-medium text-sm text-700 mb-2 block">
+            <i className="pi pi-pencil mr-1" /> Keterangan
           </label>
           <InputTextarea
             rows={2}
@@ -307,19 +313,19 @@ const FormPresensiMasuk = ({
         {/* Tombol Aksi */}
         <div className="flex flex-column gap-2 mt-2">
           <Button
-            label={isLoading ? "Menyimpan..." : "SUBMIT ABSEN MASUK"}
+            label={isLoading ? "Menyimpan..." : "Submit Absen Masuk"}
             icon={isLoading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
             onClick={handleSubmit}
             disabled={isLoading || loadingLokasi}
-            className="p-button-success p-button-lg shadow-3 border-round-xl font-bold"
-            style={{ height: "50px" }}
+            style={{ height: "44px" }}
           />
           <Button
             label="Batal"
             icon="pi pi-times"
             onClick={onHide}
             disabled={isLoading}
-            className="p-button-text p-button-secondary"
+            outlined
+            severity="secondary"
           />
         </div>
 

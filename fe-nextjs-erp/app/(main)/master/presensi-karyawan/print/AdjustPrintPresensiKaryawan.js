@@ -59,17 +59,29 @@ export default function AdjustPrintPresensiKaryawan({
         setErrorMsg("Pilih rentang tanggal lengkap.");
         return [];
       }
+
+      // Ambil token — sama seperti page.js dan halaman lain
+      const token = localStorage.getItem("TOKEN");
+      if (!token) {
+        setErrorMsg("Sesi tidak ditemukan. Silakan login kembali.");
+        return [];
+      }
+
       const start = config.dateRange[0].toLocaleDateString("en-CA");
       const end   = config.dateRange[1].toLocaleDateString("en-CA");
 
-      // API_URL sudah = http://localhost:8100/api
       const res = await axios.get(`${API_URL}/master-presensi/rekap`, {
         params: { startDate: start, endDate: end },
+        headers: { Authorization: `Bearer ${token}` },
       });
       return res.data?.data || [];
     } catch (error) {
       console.error("Fetch Error:", error);
-      setErrorMsg("Koneksi server terputus.");
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setErrorMsg("Sesi habis atau tidak punya akses. Silakan login kembali.");
+      } else {
+        setErrorMsg("Koneksi server terputus.");
+      }
       return [];
     }
   };
@@ -89,11 +101,9 @@ export default function AdjustPrintPresensiKaryawan({
     const contentW = W - mL - mR;
 
     // ── KOP SURAT ──────────────────────────────────────────────
-    // Banner biru gelap
     doc.setFillColor(26, 54, 93);
     doc.rect(mL, mT, contentW, 22, "F");
 
-    // Aksen garis emas
     doc.setFillColor(212, 175, 55);
     doc.rect(mL, mT + 22, contentW, 1.2, "F");
 
@@ -107,31 +117,29 @@ export default function AdjustPrintPresensiKaryawan({
     doc.setTextColor(200, 220, 255);
     doc.text(COMPANY.toUpperCase(), W / 2, mT + 16, { align: "center" });
 
-    // Info periode
     doc.setTextColor(44, 62, 80);
     doc.setFontSize(9);
     const rangeStr = `${config.dateRange[0].toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })} s/d ${config.dateRange[1].toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}`;
     doc.text(`Periode Laporan: ${rangeStr}`, mL, mT + 30);
     doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, W - mR, mT + 30, { align: "right" });
 
-    // Garis pemisah
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(mL, mT + 33, W - mR, mT + 33);
 
     // ── STATISTIK RINGKASAN ─────────────────────────────────────
-    const total   = dataPresensi.length;
-    const hadir   = dataPresensi.filter((d) => d.STATUS === "Hadir").length;
-    const izin    = dataPresensi.filter((d) => d.STATUS === "Izin").length;
-    const sakit   = dataPresensi.filter((d) => d.STATUS === "Sakit").length;
+    const total     = dataPresensi.length;
+    const hadir     = dataPresensi.filter((d) => d.STATUS === "Hadir").length;
+    const izin      = dataPresensi.filter((d) => d.STATUS === "Izin").length;
+    const sakit     = dataPresensi.filter((d) => d.STATUS === "Sakit").length;
     const terlambat = dataPresensi.filter((d) => d.IS_TERLAMBAT == 1).length;
 
     const stats = [
-      { label: "Total Record",  value: total,     color: [41, 128, 185] },
-      { label: "Hadir",         value: hadir,      color: [39, 174, 96]  },
-      { label: "Izin",          value: izin,       color: [243, 156, 18] },
-      { label: "Sakit",         value: sakit,      color: [230, 126, 34] },
-      { label: "Terlambat",     value: terlambat,  color: [192, 57, 43]  },
+      { label: "Total Record", value: total,     color: [41, 128, 185] },
+      { label: "Hadir",        value: hadir,      color: [39, 174, 96]  },
+      { label: "Izin",         value: izin,       color: [243, 156, 18] },
+      { label: "Sakit",        value: sakit,      color: [230, 126, 34] },
+      { label: "Terlambat",    value: terlambat,  color: [192, 57, 43]  },
     ];
 
     const boxW = contentW / stats.length - 2;
@@ -152,7 +160,6 @@ export default function AdjustPrintPresensiKaryawan({
     // ── TABEL DATA ──────────────────────────────────────────────
     const cols = ["No", "ID Karyawan", "Nama Karyawan", "Tanggal", "Masuk", "Pulang", "Durasi", "Status", "Keterangan"];
     const rows = dataPresensi.map((item, idx) => {
-      // Hitung durasi kerja
       let durasi = "-";
       if (item.JAM_MASUK && item.JAM_KELUAR) {
         const [hM, mM] = item.JAM_MASUK.split(":").map(Number);
@@ -207,7 +214,6 @@ export default function AdjustPrintPresensiKaryawan({
         }
       },
       didDrawPage(d) {
-        // Footer setiap halaman
         doc.setFillColor(26, 54, 93);
         doc.rect(mL, H - 12, contentW, 8, "F");
         doc.setTextColor(200, 220, 255);
@@ -228,7 +234,10 @@ export default function AdjustPrintPresensiKaryawan({
       doc.setTextColor(44, 62, 80);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`${config.dateRange[1].toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}`, signX + 25, signY + 6, { align: "center" });
+      doc.text(
+        `${config.dateRange[1].toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}`,
+        signX + 25, signY + 6, { align: "center" }
+      );
       doc.text("Mengetahui,", signX + 25, signY + 11, { align: "center" });
       doc.setFont("helvetica", "bold");
       doc.text("HRD DEPARTMENT", signX + 25, signY + 26, { align: "center" });
@@ -244,7 +253,7 @@ export default function AdjustPrintPresensiKaryawan({
     setErrorMsg(null);
     const data = await fetchRekapPresensi();
     if (data.length === 0) {
-      setErrorMsg("Tidak ada data presensi pada periode tersebut.");
+      if (!errorMsg) setErrorMsg("Tidak ada data presensi pada periode tersebut.");
       setLoading(false);
       return;
     }
@@ -263,9 +272,9 @@ export default function AdjustPrintPresensiKaryawan({
       visible={visible}
       onHide={onHide}
       header={
-        <div className="flex align-items-center gap-2 text-indigo-900">
-          <i className="pi pi-print text-xl"></i>
-          <span className="font-black uppercase tracking-wider">Parameter Cetak Laporan</span>
+        <div className="flex align-items-center gap-2">
+          <i className="pi pi-print text-primary text-xl"></i>
+          <span className="font-bold text-900">Parameter Cetak Laporan</span>
         </div>
       }
       style={{ width: "460px" }}
@@ -273,8 +282,8 @@ export default function AdjustPrintPresensiKaryawan({
       className="p-fluid"
       footer={
         <div className="flex justify-content-end gap-2 pt-2">
-          <Button label="Batal" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={onHide} />
-          <Button label="Proses & Cetak PDF" icon="pi pi-file-pdf" severity="danger" loading={loading} onClick={handleGenerate} />
+          <Button label="Batal" icon="pi pi-times" outlined severity="secondary" onClick={onHide} />
+          <Button label="Proses & Cetak PDF" icon="pi pi-file-pdf" loading={loading} onClick={handleGenerate} />
         </div>
       }
     >
@@ -286,8 +295,8 @@ export default function AdjustPrintPresensiKaryawan({
         )}
 
         <div className="col-12 field">
-          <label className="font-bold text-sm mb-2 block">
-            <i className="pi pi-calendar mr-1 text-indigo-500"></i> Rentang Tanggal
+          <label className="font-medium text-sm text-700 mb-2 block">
+            <i className="pi pi-calendar mr-1" /> Rentang Tanggal
           </label>
           <Calendar
             value={config.dateRange}
@@ -302,40 +311,40 @@ export default function AdjustPrintPresensiKaryawan({
         </div>
 
         <div className="col-6 field">
-          <label className="font-semibold text-xs mb-1 block uppercase text-500">Ukuran Kertas</label>
+          <label className="font-medium text-sm text-700 mb-1 block">Ukuran Kertas</label>
           <Dropdown
             value={config.paperSize}
             options={paperSizes}
             onChange={(e) => setConfig((p) => ({ ...p, paperSize: e.value }))}
             optionLabel="name"
-            className="p-inputtext-sm w-full"
+            className="w-full"
           />
         </div>
 
         <div className="col-6 field">
-          <label className="font-semibold text-xs mb-1 block uppercase text-500">Orientasi</label>
+          <label className="font-medium text-sm text-700 mb-1 block">Orientasi</label>
           <Dropdown
             value={config.orientation}
             options={orientationOptions}
             onChange={(e) => setConfig((p) => ({ ...p, orientation: e.value }))}
-            className="p-inputtext-sm w-full"
+            className="w-full"
           />
         </div>
 
         <div className="col-12 my-1">
           <Divider align="left">
-            <span className="p-tag p-tag-info text-xs font-bold">Margin Dokumen (mm)</span>
+            <span className="text-xs font-medium text-500 uppercase">Margin Dokumen (mm)</span>
           </Divider>
         </div>
 
         {[
-          { label: "Atas", key: "marginTop" },
-          { label: "Bawah", key: "marginBottom" },
-          { label: "Kiri", key: "marginLeft" },
-          { label: "Kanan", key: "marginRight" },
+          { label: "Atas",   key: "marginTop"    },
+          { label: "Bawah",  key: "marginBottom" },
+          { label: "Kiri",   key: "marginLeft"   },
+          { label: "Kanan",  key: "marginRight"  },
         ].map(({ label, key }) => (
           <div className="col-3 field" key={key}>
-            <label className="text-xs mb-1 block font-semibold text-500">{label}</label>
+            <label className="text-xs mb-1 block font-medium text-700">{label}</label>
             <InputNumber
               value={config[key]}
               onValueChange={(e) => setConfig((p) => ({ ...p, [key]: e.value }))}

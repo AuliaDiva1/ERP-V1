@@ -2,11 +2,15 @@
 
 import axios from "axios";
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
+import { Calendar } from "primereact/calendar";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Tag } from "primereact/tag";
 import { Skeleton } from "primereact/skeleton";
-
+import { Card } from "primereact/card";
+import { ProgressBar } from "primereact/progressbar";
+import { Avatar } from "primereact/avatar";
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import HeaderBar from "../../../components/headerbar";
@@ -17,57 +21,132 @@ import AdjustPrintPresensiKaryawan from "./print/AdjustPrintPresensiKaryawan";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api").replace(/\/+$/g, "");
 
+const toYMD = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getStatusSeverity = (status) => {
+  if (status === "Hadir") return "success";
+  if (status === "Sakit") return "warning";
+  if (status === "Izin")  return "info";
+  return "danger";
+};
+
 export default function PresensiKaryawanPage() {
+  const router    = useRouter();
   const toastRef  = useRef(null);
   const isMounted = useRef(true);
 
-  const [dataList, setDataList]               = useState([]);
-  const [originalData, setOriginalData]       = useState([]);
-  const [isLoading, setIsLoading]             = useState(false);
-  const [selectedData, setSelectedData]       = useState(null);
+  const [token,           setToken]           = useState("");
+  const [dataList,        setDataList]        = useState([]);
+  const [originalData,    setOriginalData]    = useState([]);
+  const [isLoading,       setIsLoading]       = useState(false);
+  const [selectedData,    setSelectedData]    = useState(null);
   const [karyawanOptions, setKaryawanOptions] = useState([]);
   const [modals, setModals] = useState({
     masuk: false, pulang: false, detail: false, print: false,
   });
-  const [pdfUrl, setPdfUrl]                     = useState(null);
-  const [fileName, setFileName]                 = useState("");
+  const [pdfUrl,           setPdfUrl]           = useState(null);
+  const [fileName,         setFileName]         = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
+  // ─── Date filter ────────────────────────────────────────────
+  const now = new Date();
+  const [startDate, setStartDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+  const [endDate,   setEndDate]   = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
+  const startDateRef = useRef(startDate);
+  const endDateRef   = useRef(endDate);
+  useEffect(() => { startDateRef.current = startDate; }, [startDate]);
+  useEffect(() => { endDateRef.current   = endDate;   }, [endDate]);
+
+  const shortcutOptions = [
+    { label: "Bulan Ini",  getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth(), 1),     e: new Date(n.getFullYear(), n.getMonth() + 1, 0) }; } },
+    { label: "Bulan Lalu", getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth() - 1, 1), e: new Date(n.getFullYear(), n.getMonth(), 0) }; } },
+    { label: "3 Bulan",    getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth() - 2, 1), e: new Date(n.getFullYear(), n.getMonth() + 1, 0) }; } },
+    { label: "Tahun Ini",  getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), 0, 1),                e: new Date(n.getFullYear(), 11, 31) }; } },
+  ];
+
+  // ─── Stats ─────────────────────────────────────────────────
   const stats = {
     total:       dataList.length,
     hadir:       dataList.filter((d) => d.STATUS === "Hadir").length,
     izin:        dataList.filter((d) => d.STATUS === "Izin").length,
     sakit:       dataList.filter((d) => d.STATUS === "Sakit").length,
+    cuti:        dataList.filter((d) => d.STATUS === "Cuti").length,
+    alpa:        dataList.filter((d) => d.STATUS === "Alpa").length,
     belumPulang: dataList.filter((d) => d.JAM_MASUK && !d.JAM_KELUAR).length,
     terlambat:   dataList.filter((d) => d.IS_TERLAMBAT == 1).length,
+    pulangAwal:  dataList.filter((d) => d.IS_PULANG_AWAL == 1).length,
   };
 
-  useEffect(() => {
-    fetchData();
-    fetchKaryawanList();
-    return () => { isMounted.current = false; };
-  }, []);
+  const perKaryawan = Object.values(
+    dataList.reduce((acc, row) => {
+      const id = row.KARYAWAN_ID;
+      if (!acc[id]) acc[id] = { id, nama: row.NAMA_KARYAWAN, hadir: 0, alpa: 0, terlambat: 0 };
+      if (row.STATUS === "Hadir") acc[id].hadir++;
+      if (row.STATUS === "Alpa")  acc[id].alpa++;
+      if (row.IS_TERLAMBAT == 1)  acc[id].terlambat++;
+      return acc;
+    }, {})
+  );
+  const topHadir     = [...perKaryawan].sort((a, b) => b.hadir - a.hadir).slice(0, 5);
+  const topTerlambat = [...perKaryawan].filter((k) => k.terlambat > 0).sort((a, b) => b.terlambat - a.terlambat).slice(0, 5);
 
-  const fetchData = async () => {
+  // ─── Init: ambil token ────────────────────────────────────
+  useEffect(() => {
+    const t = localStorage.getItem("TOKEN");
+    if (!t) {
+      router.push("/");
+      return;
+    }
+    setToken(t);
+    return () => { isMounted.current = false; };
+  }, [router]);
+
+  useEffect(() => {
+    if (token) {
+      doFetch(startDate, endDate, token);
+      fetchKaryawanList(token);
+    }
+  }, [token]);
+
+  // ─── Fetch rekap (protected) ─────────────────────────────
+  const doFetch = async (sd, ed, t = token) => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/master-presensi/rekap`);
+      const res = await axios.get(`${API_URL}/master-presensi/rekap`, {
+        params: { start_date: toYMD(sd), end_date: toYMD(ed) },
+        headers: { Authorization: `Bearer ${t}` },
+      });
       if (res.data.status === "success") {
         setDataList(res.data.data || []);
         setOriginalData(res.data.data || []);
       }
-    } catch {
-      toastRef.current?.showToast("01", "Gagal memuat data presensi");
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        toastRef.current?.showToast("01", "Sesi habis, silakan login kembali");
+        router.push("/");
+      } else {
+        toastRef.current?.showToast("01", "Gagal memuat data presensi");
+      }
     } finally {
       if (isMounted.current) setIsLoading(false);
     }
   };
 
+  const applyShortcut = (sd, ed) => {
+    setStartDate(sd);
+    setEndDate(ed);
+    doFetch(sd, ed, token);
+  };
+
+  // ─── Fetch list karyawan (publik, tidak perlu token) ─────
   const fetchKaryawanList = async () => {
     try {
-      const res = await axios.get(`${API_URL}/master-presensi/list-karyawan`, {
-        params: { _t: Date.now() },
-      });
+      const res = await axios.get(`${API_URL}/master-presensi/list-karyawan`);
       if (res.data.status === "success") {
         setKaryawanOptions(
           res.data.data.map((k) => ({
@@ -91,6 +170,7 @@ export default function PresensiKaryawanPage() {
     );
   };
 
+  // ─── Save masuk (publik) ──────────────────────────────────
   const handleSaveMasuk = async (formData) => {
     setIsLoading(true);
     try {
@@ -100,7 +180,7 @@ export default function PresensiKaryawanPage() {
       if (res.data.status === "success") {
         toastRef.current?.showToast("00", "Presensi masuk berhasil dicatat");
         setModals((p) => ({ ...p, masuk: false }));
-        fetchData();
+        doFetch(startDateRef.current, endDateRef.current, token);
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal simpan");
       }
@@ -109,6 +189,7 @@ export default function PresensiKaryawanPage() {
     } finally { setIsLoading(false); }
   };
 
+  // ─── Save pulang (publik) ─────────────────────────────────
   const handleSavePulang = async (formData) => {
     setIsLoading(true);
     try {
@@ -118,7 +199,7 @@ export default function PresensiKaryawanPage() {
       if (res.data.status === "success") {
         toastRef.current?.showToast("00", "Presensi pulang berhasil dicatat");
         setModals((p) => ({ ...p, pulang: false }));
-        fetchData();
+        doFetch(startDateRef.current, endDateRef.current, token);
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal simpan");
       }
@@ -127,6 +208,7 @@ export default function PresensiKaryawanPage() {
     } finally { setIsLoading(false); }
   };
 
+  // ─── Delete (protected) ───────────────────────────────────
   const handleDelete = (rowData) => {
     confirmDialog({
       message: `Hapus data presensi "${rowData.NAMA_KARYAWAN}" tanggal ${new Date(rowData.TANGGAL).toLocaleDateString("id-ID")}?`,
@@ -137,74 +219,49 @@ export default function PresensiKaryawanPage() {
       acceptClassName: "p-button-danger",
       accept: async () => {
         try {
-          const res = await axios.delete(`${API_URL}/master-presensi/${rowData.ID}`);
+          const res = await axios.delete(`${API_URL}/master-presensi/${rowData.ID}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           if (res.data.status === "success") {
             toastRef.current?.showToast("00", "Data berhasil dihapus");
-            fetchData();
+            doFetch(startDateRef.current, endDateRef.current, token);
           } else {
             toastRef.current?.showToast("01", res.data.message || "Gagal menghapus");
           }
-        } catch {
-          toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus");
+        } catch (err) {
+          if (err.response?.status === 403) {
+            toastRef.current?.showToast("01", "Anda tidak memiliki izin untuk menghapus data");
+          } else {
+            toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus");
+          }
         }
       },
     });
   };
 
-  /* ---- STAT CARD ---- */
-  const StatCard = ({ label, value, icon, borderColor, bgColor, desc }) => (
-    <div className="col-6 md:col-2">
-      <div
-        className={`${bgColor} border-round-xl p-3 shadow-1 h-full`}
-        style={{ borderLeft: `4px solid ${borderColor}` }}
-      >
-        <div className="flex justify-content-between align-items-start">
-          <div>
-            <div className="text-3xl font-black text-900 mb-1">
-              {isLoading ? <Skeleton width="2rem" height="1.8rem" /> : value}
-            </div>
-            <div className="text-xs font-bold text-500 uppercase">{label}</div>
-            {desc && <div className="text-xs text-400 mt-1 italic">{desc}</div>}
-          </div>
-          <i className={`${icon} text-2xl`} style={{ color: borderColor }}></i>
-        </div>
-      </div>
-    </div>
-  );
+  const openModal  = (key, row) => { if (row !== undefined) setSelectedData(row); setModals((p) => ({ ...p, [key]: true })); };
+  const closeModal = (key) => setModals((p) => ({ ...p, [key]: false }));
 
-  /* ---- COLUMNS ---- */
+  // ─── Columns ────────────────────────────────────────────────
   const columns = [
     {
-      field: "KARYAWAN_ID",
-      header: "ID Karyawan",
-      sortable: true,
-      body: (r) => (
-        <code className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 border-round">
-          {r.KARYAWAN_ID}
-        </code>
-      ),
+      field: "KARYAWAN_ID", header: "ID Karyawan", sortable: true,
+      body: (r) => <span>{r.KARYAWAN_ID}</span>,
     },
     { field: "NAMA_KARYAWAN", header: "Nama Karyawan", sortable: true },
     {
-      field: "TANGGAL",
-      header: "Tanggal",
-      sortable: true,
-      body: (r) =>
-        new Date(r.TANGGAL).toLocaleDateString("id-ID", {
-          weekday: "short", day: "2-digit", month: "short", year: "numeric",
-        }),
+      field: "TANGGAL", header: "Tanggal", sortable: true,
+      body: (r) => new Date(r.TANGGAL).toLocaleDateString("id-ID", {
+        weekday: "short", day: "2-digit", month: "short", year: "numeric",
+      }),
     },
     {
       header: "Jam Masuk",
       body: (r) => (
         <div className="flex align-items-center gap-1">
-          <i className="pi pi-sign-in text-teal-500 text-xs"></i>
-          <span className="font-mono font-bold text-teal-700">
-            {r.JAM_MASUK?.substring(0, 5) || "-"}
-          </span>
-          {r.IS_TERLAMBAT == 1 && (
-            <Tag value="Terlambat" severity="danger" className="text-xs ml-1" />
-          )}
+          <i className="pi pi-sign-in text-teal-500 text-xs" />
+          <span className="font-mono font-bold text-teal-700">{r.JAM_MASUK?.substring(0, 5) || "—"}</span>
+          {r.IS_TERLAMBAT == 1 && <Tag value="Terlambat" severity="danger" className="text-xs ml-1" />}
         </div>
       ),
     },
@@ -212,248 +269,297 @@ export default function PresensiKaryawanPage() {
       header: "Jam Pulang",
       body: (r) => (
         <div className="flex align-items-center gap-1">
-          <i className={`pi pi-sign-out text-xs ${r.JAM_KELUAR ? "text-orange-500" : "text-300"}`}></i>
+          <i className={`pi pi-sign-out text-xs ${r.JAM_KELUAR ? "text-orange-500" : "text-300"}`} />
           <span className={`font-mono font-bold ${r.JAM_KELUAR ? "text-orange-700" : "text-400 italic"}`}>
             {r.JAM_KELUAR?.substring(0, 5) || "Belum Pulang"}
           </span>
-          {r.IS_PULANG_AWAL == 1 && (
-            <Tag value="Awal" severity="warning" className="text-xs ml-1" />
-          )}
+          {r.IS_PULANG_AWAL == 1 && <Tag value="Awal" severity="warning" className="text-xs ml-1" />}
         </div>
       ),
     },
     {
       header: "Durasi",
       body: (r) => {
-        if (!r.JAM_MASUK || !r.JAM_KELUAR)
-          return <span className="text-400 text-xs italic">—</span>;
+        if (!r.JAM_MASUK || !r.JAM_KELUAR) return <span className="text-400 text-xs italic">—</span>;
         const [hM, mM] = r.JAM_MASUK.split(":").map(Number);
         const [hK, mK] = r.JAM_KELUAR.split(":").map(Number);
         const total = hK * 60 + mK - (hM * 60 + mM);
         if (total <= 0) return <span className="text-400 text-xs italic">—</span>;
-        return (
-          <span className="font-mono text-sm font-bold text-indigo-600">
-            {Math.floor(total / 60)}j {total % 60}m
-          </span>
-        );
+        return <span className="font-mono text-sm font-bold text-indigo-600">{Math.floor(total / 60)}j {total % 60}m</span>;
       },
     },
     {
-      field: "STATUS",
-      header: "Status",
-      sortable: true,
-      body: (r) => (
-        <Tag
-          value={r.STATUS}
-          severity={
-            r.STATUS === "Hadir"      ? "success" :
-            r.STATUS === "Sakit"      ? "warning" :
-            r.STATUS === "Izin"       ? "info"    : "danger"
-          }
-          rounded
-        />
-      ),
+      field: "STATUS", header: "Status", sortable: true,
+      body: (r) => <Tag value={r.STATUS} rounded severity={getStatusSeverity(r.STATUS)} />,
     },
     {
       header: "Keterangan",
-      body: (r) => (
-        <span className="text-xs text-600 italic">
-          {r.KETERANGAN || <span className="text-300">—</span>}
-        </span>
-      ),
+      body: (r) => <span>{r.KETERANGAN || "—"}</span>,
     },
     {
-      header: "Aksi",
-      style: { width: "120px" },
-      body: (rowData) => (
+      header: "Aksi", style: { width: "120px" },
+      body: (r) => (
         <div className="flex gap-1">
-          {!rowData.JAM_KELUAR && (
-            <Button
-              icon="pi pi-sign-out"
-              size="small"
-              severity="warning"
-              tooltip="Absen Pulang"
-              tooltipOptions={{ position: "top" }}
-              onClick={() => {
-                setSelectedData(rowData);
-                setModals((p) => ({ ...p, pulang: true }));
-              }}
-            />
+          {!r.JAM_KELUAR && (
+            <Button icon="pi pi-sign-out" size="small" severity="warning"
+              tooltip="Absen Pulang" tooltipOptions={{ position: "top" }}
+              onClick={() => openModal("pulang", r)} />
           )}
-          <Button
-            icon="pi pi-eye"
-            size="small"
-            severity="info"
-            tooltip="Lihat Detail"
-            tooltipOptions={{ position: "top" }}
-            onClick={() => {
-              setSelectedData(rowData);
-              setModals((p) => ({ ...p, detail: true }));
-            }}
-          />
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            tooltip="Hapus Data"
-            tooltipOptions={{ position: "top" }}
-            onClick={() => handleDelete(rowData)}
-          />
+          <Button icon="pi pi-eye" size="small" severity="info"
+            tooltip="Lihat Detail" tooltipOptions={{ position: "top" }}
+            onClick={() => openModal("detail", r)} />
+          <Button icon="pi pi-trash" size="small" severity="danger"
+            tooltip="Hapus Data" tooltipOptions={{ position: "top" }}
+            onClick={() => handleDelete(r)} />
         </div>
       ),
     },
   ];
 
-  /* ---- RENDER ---- */
+  // ─── Render ─────────────────────────────────────────────────
   return (
-    <div className="flex flex-column gap-3 p-3 md:p-4">
+    <div className="card p-0">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      {/* ===== PAGE HEADER ===== */}
-      <div className="surface-0 border-round-2xl shadow-2 p-4"
-           style={{ borderLeft: "5px solid #6366f1" }}>
-        <div className="flex flex-column md:flex-row md:align-items-center justify-content-between gap-3">
+      {/* ── Header ── */}
+      <div className="px-4 pt-4 pb-3 border-bottom-1 surface-border">
+        <div className="flex align-items-center justify-content-between flex-wrap gap-3">
           <div>
             <div className="flex align-items-center gap-2 mb-1">
-              <i className="pi pi-calendar-clock text-indigo-600 text-2xl"></i>
-              <h2 className="m-0 text-2xl font-black text-900">Manajemen Presensi Karyawan</h2>
+              <i className="pi pi-calendar-clock text-primary text-2xl" />
+              <h2 className="m-0 text-2xl font-bold text-900">Manajemen Presensi Karyawan</h2>
             </div>
-            {/* ← Deskripsi tanpa nama perusahaan */}
             <p className="m-0 text-500 text-sm mt-1">
               Kelola data kehadiran, jam masuk, jam pulang, dan rekap harian karyawan secara terpusat.
             </p>
-            <div className="flex align-items-center gap-2 mt-2 text-400 text-xs">
-              <i className="pi pi-calendar"></i>
-              <span>
-                {new Date().toLocaleDateString("id-ID", {
-                  weekday: "long", day: "2-digit", month: "long", year: "numeric",
-                })}
-              </span>
-              <span className="mx-1">·</span>
-              <i className="pi pi-database"></i>
-              <span>{stats.total} total record</span>
-            </div>
           </div>
-
           <div className="flex gap-2 flex-wrap">
-            <Button
-              icon="pi pi-print"
-              label="Cetak Laporan"
-              severity="secondary"
-              outlined
-              onClick={() => setModals((p) => ({ ...p, print: true }))}
-            />
-            <Button
-              icon="pi pi-refresh"
-              label="Refresh"
-              severity="secondary"
-              outlined
-              loading={isLoading}
-              onClick={fetchData}
-            />
-            <Button
-              icon="pi pi-plus"
-              label="Catat Absen Masuk"
-              severity="success"
-              onClick={() => {
-                setSelectedData(null);
-                setModals((p) => ({ ...p, masuk: true }));
-              }}
-            />
+            {shortcutOptions.map((opt) => (
+              <Button key={opt.label} label={opt.label} size="small"
+                className="p-button-outlined p-button-secondary"
+                onClick={() => { const r = opt.getRange(); applyShortcut(r.s, r.e); }} />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex align-items-end justify-content-between gap-3 mt-4 flex-wrap">
+          <div className="flex align-items-end gap-3 flex-wrap">
+            <div>
+              <label className="block text-sm font-medium text-700 mb-2">Dari Tanggal</label>
+              <Calendar value={startDate} onChange={(e) => setStartDate(e.value)}
+                dateFormat="dd/mm/yy" showIcon className="w-12rem" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-700 mb-2">Sampai Tanggal</label>
+              <Calendar value={endDate} onChange={(e) => setEndDate(e.value)}
+                dateFormat="dd/mm/yy" showIcon className="w-12rem" />
+            </div>
+            <Button label="Tampilkan" icon="pi pi-search" loading={isLoading}
+              onClick={() => doFetch(startDate, endDate, token)} />
+          </div>
+          <div className="flex align-items-end gap-2 flex-wrap">
+            <Button icon="pi pi-print" label="Cetak Laporan" severity="secondary" outlined
+              onClick={() => openModal("print")} />
+            <Button icon="pi pi-plus" label="Catat Absen Masuk"
+              onClick={() => openModal("masuk", null)} />
           </div>
         </div>
       </div>
 
-      {/* ===== STATISTIK ===== */}
-      <div className="grid m-0 gap-2">
-        <StatCard label="Total Record"   value={stats.total}       icon="pi pi-list"               borderColor="#6366f1" bgColor="surface-0"    desc="Semua data" />
-        <StatCard label="Hadir"          value={stats.hadir}       icon="pi pi-check-circle"       borderColor="#22c55e" bgColor="bg-green-50"  desc="Status hadir" />
-        <StatCard label="Izin"           value={stats.izin}        icon="pi pi-file-edit"          borderColor="#3b82f6" bgColor="bg-blue-50"   desc="Izin resmi" />
-        <StatCard label="Sakit"          value={stats.sakit}       icon="pi pi-heart"              borderColor="#f97316" bgColor="bg-orange-50" desc="Surat sakit" />
-        <StatCard label="Belum Pulang"   value={stats.belumPulang} icon="pi pi-clock"              borderColor="#eab308" bgColor="bg-yellow-50" desc="Masih bekerja" />
-        <StatCard label="Terlambat"      value={stats.terlambat}   icon="pi pi-exclamation-circle" borderColor="#ef4444" bgColor="bg-red-50"    desc="Lewat jam masuk" />
-      </div>
-
-      {/* ===== TABEL ===== */}
-      <div className="surface-0 border-round-xl shadow-2 overflow-hidden">
-        <div className="flex align-items-center justify-content-between px-4 py-3 border-bottom-1 border-200">
-          <div className="flex align-items-center gap-2">
-            <i className="pi pi-table text-indigo-500"></i>
-            <span className="font-bold text-900">Data Rekap Presensi</span>
-            <Tag value={`${dataList.length} data`} severity="info" rounded />
+      <div className="p-4">
+        {isLoading ? (
+          <div className="grid">
+            {[1,2,3,4,5,6].map((i) => (
+              <div key={i} className="col-12 md:col-4"><Skeleton height="100px" className="border-round-xl" /></div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <>
+            {/* ── KPI Cards ── */}
+            <div className="grid mb-4">
+              {[
+                { icon: "pi pi-list",               color: "#6366f1", label: "Total Record",  value: stats.total,       sub: "Semua data" },
+                { icon: "pi pi-check-circle",       color: "#22c55e", label: "Hadir",          value: stats.hadir,       sub: "Status hadir" },
+                { icon: "pi pi-file-edit",          color: "#3b82f6", label: "Izin",           value: stats.izin,        sub: "Izin resmi" },
+                { icon: "pi pi-heart",              color: "#f59e0b", label: "Sakit",          value: stats.sakit,       sub: "Surat sakit" },
+                { icon: "pi pi-clock",              color: "#eab308", label: "Belum Pulang",   value: stats.belumPulang, sub: "Masih bekerja" },
+                { icon: "pi pi-exclamation-circle", color: "#ef4444", label: "Terlambat",      value: stats.terlambat,   sub: "Lewat jam masuk" },
+              ].map((kpi) => (
+                <div key={kpi.label} className="col-12 md:col-4 lg:col-2">
+                  <div className="surface-card border-round-xl shadow-2 p-4" style={{ borderLeft: `4px solid ${kpi.color}` }}>
+                    <div className="flex align-items-center gap-2 mb-2">
+                      <i className={`${kpi.icon} text-lg`} style={{ color: kpi.color }} />
+                      <span className="text-500 text-xs font-medium uppercase">{kpi.label}</span>
+                    </div>
+                    <div className="font-bold text-2xl text-900">{kpi.value}</div>
+                    <div className="text-500 text-xs mt-1">{kpi.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        <div className="px-4 pt-3">
-          <HeaderBar
-            onSearch={handleSearch}
-            showAddButton={false}
-            placeholder="Cari nama, ID, atau status karyawan..."
-          />
-        </div>
+            {/* ── Distribusi + Top Karyawan ── */}
+            <div className="grid mb-4">
+              <div className="col-12 md:col-4">
+                <Card title="Distribusi Status" className="shadow-2 h-full">
+                  <div className="flex flex-column gap-3">
+                    {[
+                      { label: "Hadir", value: stats.hadir,  color: "#22c55e" },
+                      { label: "Alpa",  value: stats.alpa,   color: "#ef4444" },
+                      { label: "Izin",  value: stats.izin,   color: "#3b82f6" },
+                      { label: "Sakit", value: stats.sakit,  color: "#f59e0b" },
+                      { label: "Cuti",  value: stats.cuti,   color: "#8b5cf6" },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <div className="flex justify-content-between align-items-center mb-1">
+                          <span className="text-600 text-sm">{item.label}</span>
+                          <span className="font-bold" style={{ color: item.color }}>{item.value}</span>
+                        </div>
+                        <ProgressBar value={stats.total ? Math.round((item.value / stats.total) * 100) : 0}
+                          showValue={false} style={{ height: 8, borderRadius: 4 }}
+                          pt={{ value: { style: { background: item.color, borderRadius: 4 } } }} />
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
 
-        <CustomDataTable
-          data={dataList}
-          loading={isLoading}
-          columns={columns}
-          emptyMessage="Tidak ada data presensi. Gunakan tombol 'Catat Absen Masuk' di atas."
-        />
+              <div className="col-12 md:col-4">
+                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl"></span><span>Kehadiran Tertinggi</span></div>} className="shadow-2 h-full">
+                  {topHadir.length === 0 ? (
+                    <p className="text-500 text-center py-4">Tidak ada data</p>
+                  ) : topHadir.map((item, idx) => (
+                    <div key={item.id} className="flex align-items-center gap-3 mb-3 p-2 surface-50 border-round">
+                      <div className="flex align-items-center justify-content-center border-round-full flex-shrink-0"
+                        style={{ width: 32, height: 32, minWidth: 32, background: "#22c55e22" }}>
+                        <span className="text-green-600 font-bold text-sm">{idx + 1}</span>
+                      </div>
+                      <Avatar label={item.nama?.charAt(0)} size="normal" shape="circle"
+                        style={{ background: "#22c55e22", color: "#22c55e" }} />
+                      <div className="flex-1">
+                        <div className="font-semibold text-900 text-sm">{item.nama}</div>
+                        <div className="text-500 text-xs">{item.hadir} hari hadir</div>
+                      </div>
+                      <span className="font-bold text-lg text-green-600">{item.hadir}</span>
+                    </div>
+                  ))}
+                </Card>
+              </div>
+
+              <div className="col-12 md:col-4">
+                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl"></span><span>Sering Terlambat</span></div>} className="shadow-2 h-full">
+                  {topTerlambat.length === 0 ? (
+                    <div className="text-center py-4">
+                      <i className="pi pi-check-circle text-3xl text-green-400 mb-2 block" />
+                      <p className="text-500 text-sm">Tidak ada keterlambatan</p>
+                    </div>
+                  ) : topTerlambat.map((item, idx) => (
+                    <div key={item.id} className="flex align-items-center gap-3 mb-3 p-2 surface-50 border-round">
+                      <div className="flex align-items-center justify-content-center border-round-full flex-shrink-0"
+                        style={{ width: 32, height: 32, minWidth: 32, background: "#ef444422" }}>
+                        <span className="text-red-600 font-bold text-sm">{idx + 1}</span>
+                      </div>
+                      <Avatar label={item.nama?.charAt(0)} size="normal" shape="circle"
+                        style={{ background: "#ef444422", color: "#ef4444" }} />
+                      <div className="flex-1">
+                        <div className="font-semibold text-900 text-sm">{item.nama}</div>
+                        <div className="text-500 text-xs">{item.terlambat}× terlambat</div>
+                      </div>
+                      <span className="font-bold text-lg text-red-500">{item.terlambat}</span>
+                    </div>
+                  ))}
+                </Card>
+              </div>
+            </div>
+
+            {/* ── Alert Belum Pulang ── */}
+            {stats.belumPulang > 0 && (
+              <div className="mb-4">
+                <div className="surface-card border-round-xl shadow-2 p-4" style={{ border: "1px solid #eab30840" }}>
+                  <div className="flex align-items-center gap-3">
+                    <div className="flex align-items-center justify-content-center border-round-full"
+                      style={{ width: 44, height: 44, background: "#eab30822", flexShrink: 0 }}>
+                      <i className="pi pi-clock text-yellow-600 text-xl" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-900">{stats.belumPulang} Karyawan Belum Absen Pulang</div>
+                      <div className="text-500 text-sm">Sudah absen masuk tapi belum mencatat jam pulang pada periode ini</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Tabel ── */}
+            <Card className="shadow-2">
+              <div className="flex align-items-center justify-content-between mb-3">
+                <div className="flex align-items-center gap-2">
+                  <i className="pi pi-table text-primary" />
+                  <span className="font-semibold text-700">Data Presensi</span>
+                  <Tag value={`${dataList.length} data`} severity="info" rounded />
+                </div>
+              </div>
+              <HeaderBar
+                onSearch={handleSearch}
+                showAddButton={false}
+                placeholder="Cari nama, ID, atau status karyawan..."
+              />
+              <CustomDataTable
+                data={dataList}
+                loading={isLoading}
+                columns={columns}
+                emptyMessage="Tidak ada data presensi. Gunakan tombol 'Catat Absen Masuk' di atas."
+              />
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* ===== DIALOGS ===== */}
+      {/* ── Dialogs ── */}
       <FormPresensiMasuk
         visible={modals.masuk}
-        onHide={() => setModals((p) => ({ ...p, masuk: false }))}
+        onHide={() => closeModal("masuk")}
         onSave={handleSaveMasuk}
         isLoading={isLoading}
         karyawanOptions={karyawanOptions}
       />
       <FormPresensiPulang
         visible={modals.pulang}
-        onHide={() => setModals((p) => ({ ...p, pulang: false }))}
+        onHide={() => closeModal("pulang")}
         onSave={handleSavePulang}
         isLoading={isLoading}
         userKaryawanId={selectedData?.KARYAWAN_ID}
       />
       <DetailPresensiKaryawan
         visible={modals.detail}
-        onHide={() => setModals((p) => ({ ...p, detail: false }))}
+        onHide={() => closeModal("detail")}
         data={selectedData}
       />
       <AdjustPrintPresensiKaryawan
         visible={modals.print}
-        onHide={() => setModals((p) => ({ ...p, print: false }))}
+        onHide={() => closeModal("print")}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      {/* ===== PDF PREVIEW ===== */}
+      {/* ── PDF Preview Overlay ── */}
       {jsPdfPreviewOpen && pdfUrl && (
-        <div
-          className="fixed top-0 left-0 w-full h-full flex align-items-center justify-content-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 9999 }}
-        >
-          <div
-            className="bg-white border-round-xl shadow-8 overflow-hidden flex flex-column"
-            style={{ width: "92vw", height: "92vh" }}
-          >
-            <div className="flex align-items-center justify-content-between p-3 border-bottom-1 border-200 surface-50">
+        <div className="fixed top-0 left-0 w-full h-full flex align-items-center justify-content-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 9999 }}>
+          <div className="bg-white border-round-xl shadow-8 overflow-hidden flex flex-column"
+            style={{ width: "92vw", height: "92vh" }}>
+            <div className="flex align-items-center justify-content-between p-3 border-bottom-1 surface-border surface-50">
               <div className="flex align-items-center gap-2">
-                <i className="pi pi-file-pdf text-red-500 text-xl"></i>
+                <i className="pi pi-file-pdf text-red-500 text-xl" />
                 <span className="font-bold text-900">{fileName}</span>
               </div>
               <div className="flex gap-2">
                 <a href={pdfUrl} download={fileName}>
                   <Button icon="pi pi-download" label="Unduh PDF" severity="success" size="small" />
                 </a>
-                <Button
-                  icon="pi pi-times"
-                  severity="secondary"
-                  size="small"
-                  onClick={() => setJsPdfPreviewOpen(false)}
-                />
+                <Button icon="pi pi-times" severity="secondary" size="small" onClick={() => setJsPdfPreviewOpen(false)} />
               </div>
             </div>
             <iframe src={pdfUrl} className="flex-1 w-full" style={{ border: "none" }} />

@@ -35,11 +35,11 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
     setLoading(true);
     cancelSourceRef.current = axios.CancelToken.source();
     try {
-      const resp = await axios.get(`${API_BASE}/master-karyawan`, {
+      const resp = await axios.get(`${API_BASE}/master-presensi/karyawan-info`, {
         params: { id },
         cancelToken: cancelSourceRef.current.token,
       });
-      const resData = resp?.data?.data?.[0] || resp?.data?.data || null;
+      const resData = resp?.data?.data || null;
       setKaryawan(resData || { NAMA: data?.KARYAWAN_ID, FOTO: null });
     } catch (err) {
       if (!axios.isCancel(err))
@@ -72,7 +72,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
     const H   = doc.internal.pageSize.height;
     const mL  = 12, mR = 12;
 
-    // Header banner
     doc.setFillColor(26, 54, 93);
     doc.rect(0, 0, W, 28, "F");
     doc.setFillColor(212, 175, 55);
@@ -91,7 +90,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
     doc.setFontSize(7.5);
     doc.text(`Kode: ${data.KODE_PRESENSI || "-"}`, W / 2, 24, { align: "center" });
 
-    // Info karyawan
     const nama  = karyawan?.NAMA       || data.KARYAWAN_ID || "-";
     const jabat = karyawan?.JABATAN    || "-";
     const dept  = karyawan?.DEPARTEMEN || "-";
@@ -120,7 +118,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
     doc.text(`${jabat} | ${dept}`, mL + 3, y + 19);
     doc.text(tgl, W - mR - 3, y + 19, { align: "right" });
 
-    // Tabel data — tanpa simbol unicode
     const statusMasuk  = data.IS_TERLAMBAT == 1   ? "TERLAMBAT"   : "TEPAT WAKTU";
     const statusPulang = data.IS_PULANG_AWAL == 1 ? "PULANG AWAL" : "NORMAL";
 
@@ -140,9 +137,7 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
         ["Keterangan",        data.KETERANGAN || "-"],
         ["Dicatat Pada",      data.created_at ? new Date(data.created_at).toLocaleString("id-ID") : "-"],
       ],
-      headStyles: {
-        fillColor: [26, 54, 93], textColor: 255, fontStyle: "bold", fontSize: 8.5,
-      },
+      headStyles: { fillColor: [26, 54, 93], textColor: 255, fontStyle: "bold", fontSize: 8.5 },
       bodyStyles: { fontSize: 8.5, cellPadding: 3 },
       alternateRowStyles: { fillColor: [248, 250, 255] },
       columnStyles: {
@@ -164,7 +159,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
       },
     });
 
-    // Banner durasi kerja
     const afterTable = doc.lastAutoTable.finalY + 6;
     if (data.JAM_MASUK && data.JAM_KELUAR) {
       const [hM, mMin] = data.JAM_MASUK.split(":").map(Number);
@@ -183,7 +177,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
       }
     }
 
-    // Tanda tangan
     const signY = H - 42;
     if (doc.lastAutoTable.finalY + 30 < signY) {
       doc.setDrawColor(180);
@@ -198,7 +191,6 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
       doc.line(W - mR - 48, signY + 23, W - mR - 4, signY + 23);
     }
 
-    // Footer
     doc.setFillColor(26, 54, 93);
     doc.rect(0, H - 10, W, 10, "F");
     doc.setTextColor(180, 210, 255);
@@ -211,8 +203,9 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
   };
 
   /* ── SUB KOMPONEN ───────────────────────────────────── */
-  const LogHeader = ({ title, icon, colorClass }) => (
-    <div className={`${colorClass} p-3 flex align-items-center justify-content-between text-white border-round-top-xl`}>
+  const LogHeader = ({ title, icon }) => (
+    <div className="p-3 flex align-items-center justify-content-between text-white border-round-top-xl"
+         style={{ background: "var(--primary-color)" }}>
       <div className="flex align-items-center gap-2">
         <i className={`${icon} text-xl`}></i>
         <span className="font-bold uppercase">{title}</span>
@@ -221,8 +214,7 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
     </div>
   );
 
-  const fotoKaryawan =
-    getFullUrl(karyawan?.FOTO) ||
+  const fotoKaryawan = getFullUrl(karyawan?.FOTO) ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(karyawan?.NAMA || data?.KARYAWAN_ID || "K")}&background=4f46e5&color=fff&size=128&bold=true`;
 
   /* ── RENDER ─────────────────────────────────────────── */
@@ -233,12 +225,12 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
       modal
       header={
         <div className="flex align-items-center gap-3">
-          <div className="p-2 border-round-xl bg-indigo-600 shadow-4">
-            <i className="pi pi-shield text-white text-2xl"></i>
+          <div className="p-2 border-round-xl shadow-2" style={{ background: "var(--primary-color)" }}>
+            <i className="pi pi-eye text-white text-2xl"></i>
           </div>
           <div>
-            <span className="font-black text-2xl block text-indigo-900">E-Presensi Audit</span>
-            <code className="text-primary font-bold text-sm">{data?.KODE_PRESENSI}</code>
+            <span className="font-bold text-2xl block text-900">Detail Presensi</span>
+            <span className="text-primary font-bold text-sm">{data?.KODE_PRESENSI}</span>
           </div>
         </div>
       }
@@ -251,32 +243,25 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
 
           {/* ===== PROFIL KARYAWAN ===== */}
           <div className="surface-0 border-round-2xl shadow-3 p-4 mb-4"
-               style={{ borderTop: "4px solid #6366f1" }}>
+               style={{ borderTop: "4px solid var(--primary-color)" }}>
             <div className="grid align-items-center">
 
               <div className="col-12 md:col-auto flex justify-content-center">
-                <div className="relative">
-                  {loading ? (
-                    <Skeleton shape="circle" size="7rem" />
-                  ) : (
-                    <Avatar
-                      image={fotoKaryawan}
-                      className="shadow-4"
-                      style={{ width: "100px", height: "100px" }}
-                      shape="circle"
-                    />
-                  )}
-                  <Badge
-                    severity="success"
-                    className="absolute bottom-0 right-0 border-2 border-white"
-                    style={{ width: "22px", height: "22px" }}
+                {loading ? (
+                  <Skeleton width="100px" height="100px" className="border-round-xl" />
+                ) : (
+                  <img
+                    src={fotoKaryawan}
+                    alt={karyawan?.NAMA || "foto"}
+                    className="shadow-3 border-round-xl border-1 border-200"
+                    style={{ width: "100px", height: "100px", objectFit: "cover" }}
                   />
-                </div>
+                )}
               </div>
 
               <div className="col-12 md:col text-center md:text-left">
                 <div className="flex flex-column md:flex-row md:align-items-center gap-2 mb-2 justify-content-center md:justify-content-start">
-                  <h1 className="m-0 text-2xl font-black text-900">
+                  <h1 className="m-0 text-2xl font-bold text-900">
                     {loading
                       ? <Skeleton width="200px" height="1.8rem" />
                       : (karyawan?.NAMA || data.KARYAWAN_ID)
@@ -294,21 +279,21 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                 </div>
                 <div className="flex flex-wrap justify-content-center md:justify-content-start gap-3 text-sm text-600">
                   <span className="flex align-items-center gap-1">
-                    <i className="pi pi-id-card text-indigo-400"></i>
-                    <code className="font-bold">{data.KARYAWAN_ID}</code>
+                    <i className="pi pi-id-card text-primary"></i>
+                    <span>{data.KARYAWAN_ID}</span>
                   </span>
                   {karyawan?.JABATAN && (
                     <span className="flex align-items-center gap-1 border-left-1 border-300 pl-3">
-                      <i className="pi pi-briefcase text-indigo-400"></i> {karyawan.JABATAN}
+                      <i className="pi pi-briefcase text-primary"></i> {karyawan.JABATAN}
                     </span>
                   )}
                   {karyawan?.DEPARTEMEN && (
                     <span className="flex align-items-center gap-1 border-left-1 border-300 pl-3">
-                      <i className="pi pi-building text-indigo-400"></i> {karyawan.DEPARTEMEN}
+                      <i className="pi pi-building text-primary"></i> {karyawan.DEPARTEMEN}
                     </span>
                   )}
                   <span className="flex align-items-center gap-1 border-left-1 border-300 pl-3">
-                    <i className="pi pi-calendar text-indigo-400"></i>
+                    <i className="pi pi-calendar text-primary"></i>
                     {new Date(data.TANGGAL).toLocaleDateString("id-ID", {
                       weekday: "long", year: "numeric", month: "long", day: "numeric",
                     })}
@@ -320,10 +305,11 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                 <Button
                   icon="pi pi-print"
                   label="Cetak Slip"
-                  severity="info"
                   outlined
+                  severity="secondary"
                   onClick={handlePrintSlip}
                   tooltip="Cetak slip presensi PDF"
+                  tooltipOptions={{ position: "top" }}
                 />
               </div>
 
@@ -336,12 +322,12 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
             {/* CHECK-IN */}
             <div className="col-12 md:col-6">
               <div className="surface-0 border-round-xl shadow-3 h-full flex flex-column overflow-hidden border-1 border-200">
-                <LogHeader title="Check-In Masuk" icon="pi pi-sign-in" colorClass="bg-teal-600" />
+                <LogHeader title="Check-In Masuk" icon="pi pi-sign-in" />
                 <div className="p-4 flex-grow-1">
                   <div className="flex justify-content-between align-items-start mb-4">
                     <div>
                       <small className="text-500 font-bold uppercase block mb-1">Jam Masuk</small>
-                      <div className="text-4xl font-black text-teal-700">{data.JAM_MASUK || "--:--"}</div>
+                      <div className="text-4xl font-bold text-primary font-mono">{data.JAM_MASUK || "--:--"}</div>
                       <Tag
                         className="mt-2"
                         icon={data.IS_TERLAMBAT ? "pi pi-exclamation-circle" : "pi pi-check-circle"}
@@ -356,10 +342,10 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                           src={getFullUrl(data.FOTO_MASUK)}
                           width="90"
                           preview
-                          imageClassName="border-round-xl shadow-3 border-2 border-teal-200"
+                          imageClassName="border-round-xl shadow-3 border-1 border-200"
                         />
                       ) : (
-                        <div className="w-5rem h-5rem surface-200 border-round-xl flex flex-column align-items-center justify-content-center text-400">
+                        <div className="w-5rem h-5rem surface-100 border-round-xl flex flex-column align-items-center justify-content-center text-400 border-1 border-200">
                           <i className="pi pi-camera text-xl mb-1"></i>
                           <small className="text-xs">No Image</small>
                         </div>
@@ -370,7 +356,7 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                   <div className="p-3 surface-100 border-round-xl border-1 border-200">
                     <div className="flex justify-content-between align-items-center mb-2">
                       <span className="text-xs font-bold text-600 uppercase">Lokasi GPS Masuk</span>
-                      <i className="pi pi-map-marker text-teal-600"></i>
+                      <i className="pi pi-map-marker text-primary"></i>
                     </div>
                     <code className="text-xs text-800 block mb-3 bg-white p-2 border-round border-1 border-200">
                       {data.LOKASI_MASUK || "Tidak tersedia"}
@@ -395,12 +381,12 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
             {/* CHECK-OUT */}
             <div className="col-12 md:col-6">
               <div className="surface-0 border-round-xl shadow-3 h-full flex flex-column overflow-hidden border-1 border-200">
-                <LogHeader title="Check-Out Pulang" icon="pi pi-sign-out" colorClass="bg-orange-600" />
+                <LogHeader title="Check-Out Pulang" icon="pi pi-sign-out" />
                 <div className="p-4 flex-grow-1">
                   <div className="flex justify-content-between align-items-start mb-4">
                     <div>
                       <small className="text-500 font-bold uppercase block mb-1">Jam Pulang</small>
-                      <div className="text-4xl font-black text-orange-700">{data.JAM_KELUAR || "--:--"}</div>
+                      <div className="text-4xl font-bold text-primary font-mono">{data.JAM_KELUAR || "--:--"}</div>
                       <Tag
                         className="mt-2"
                         icon={data.IS_PULANG_AWAL ? "pi pi-exclamation-triangle" : "pi pi-check-square"}
@@ -415,10 +401,10 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                           src={getFullUrl(data.FOTO_KELUAR)}
                           width="90"
                           preview
-                          imageClassName="border-round-xl shadow-3 border-2 border-orange-200"
+                          imageClassName="border-round-xl shadow-3 border-1 border-200"
                         />
                       ) : (
-                        <div className="w-5rem h-5rem surface-200 border-round-xl flex flex-column align-items-center justify-content-center text-400">
+                        <div className="w-5rem h-5rem surface-100 border-round-xl flex flex-column align-items-center justify-content-center text-400 border-1 border-200">
                           <i className="pi pi-camera text-xl mb-1"></i>
                           <small className="text-xs">No Image</small>
                         </div>
@@ -429,7 +415,7 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
                   <div className="p-3 surface-100 border-round-xl border-1 border-200">
                     <div className="flex justify-content-between align-items-center mb-2">
                       <span className="text-xs font-bold text-600 uppercase">Lokasi GPS Pulang</span>
-                      <i className="pi pi-map-marker text-orange-600"></i>
+                      <i className="pi pi-map-marker text-primary"></i>
                     </div>
                     <code className="text-xs text-800 block mb-3 bg-white p-2 border-round border-1 border-200">
                       {data.LOKASI_KELUAR || "Menunggu data..."}
@@ -466,11 +452,12 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
             const total = hK * 60 + mK - (hM * 60 + mM);
             if (total <= 0) return null;
             return (
-              <div className="bg-green-600 text-white p-3 border-round-xl shadow-2 mb-4 flex align-items-center justify-content-center gap-3">
+              <div className="text-white p-3 border-round-xl shadow-2 mb-4 flex align-items-center justify-content-center gap-3"
+                   style={{ background: "var(--primary-color)" }}>
                 <i className="pi pi-clock text-2xl"></i>
                 <div className="text-center">
                   <div className="text-xs font-bold uppercase opacity-80 mb-1">Total Durasi Kerja</div>
-                  <div className="text-2xl font-black">
+                  <div className="text-2xl font-bold">
                     {Math.floor(total / 60)} jam {total % 60} menit
                   </div>
                 </div>
@@ -482,17 +469,17 @@ const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
           <div className="surface-900 text-white p-4 border-round-2xl shadow-4">
             <div className="grid">
               <div className="col-12 md:col-8">
-                <div className="flex align-items-center gap-2 mb-2 text-indigo-300">
+                <div className="flex align-items-center gap-2 mb-2 text-primary">
                   <i className="pi pi-comments"></i>
-                  <span className="font-bold uppercase text-xs tracking-widest">Catatan Karyawan</span>
+                  <span className="font-bold uppercase text-xs">Catatan Karyawan</span>
                 </div>
                 <p className="m-0 text-gray-100 line-height-3 italic">
                   "{data.KETERANGAN || "Tidak ada catatan tambahan untuk presensi hari ini."}"
                 </p>
               </div>
               <div className="col-12 md:col-4 md:text-right flex flex-column justify-content-end">
-                <small className="text-500 uppercase block mb-1">Data Log Ingested At</small>
-                <span className="font-mono text-indigo-400 font-bold text-sm">
+                <small className="text-500 uppercase block mb-1">Dicatat Pada</small>
+                <span className="font-mono text-primary font-bold text-sm">
                   {data.created_at ? new Date(data.created_at).toLocaleString("id-ID") : "-"}
                 </span>
               </div>

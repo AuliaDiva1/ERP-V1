@@ -1,4 +1,5 @@
 import * as PresensiModel from "../models/masterPresensiModel.js";
+import { db } from "../core/config/knex.js";
 import fs from "fs";
 import path from "path";
 
@@ -12,6 +13,25 @@ export const getListKaryawan = async (req, res) => {
   } catch (error) {
     console.error("getListKaryawan error:", error);
     return res.status(500).json({ status: "error", message: "Gagal memuat data karyawan" });
+  }
+};
+
+/* ===========================================================
+ * 0b. GET INFO KARYAWAN BY ID (Publik — untuk Detail Dialog)
+ * =========================================================== */
+export const getKaryawanInfo = async (req, res) => {
+  const { id } = req.query;
+  if (!id)
+    return res.status(400).json({ status: "error", message: "ID Karyawan diperlukan" });
+  try {
+    const row = await db("master_karyawan")
+      .select("KARYAWAN_ID", "NAMA", "JABATAN", "DEPARTEMEN", "FOTO")
+      .where("KARYAWAN_ID", id)
+      .first();
+    return res.json({ status: "success", data: row || null });
+  } catch (error) {
+    console.error("getKaryawanInfo error:", error);
+    return res.status(500).json({ status: "error", message: "Gagal mengambil data karyawan" });
   }
 };
 
@@ -58,7 +78,6 @@ export const presensiMasuk = async (req, res) => {
     const today = TANGGAL || new Date().toISOString().split("T")[0];
     const jamInput = JAM_MASUK || new Date().toLocaleTimeString("it-IT");
 
-    // Cek duplikat presensi
     const existing = await PresensiModel.getTodayPresensi(KARYAWAN_ID, today);
     if (existing) {
       if (req.file) fs.unlinkSync(req.file.path);
@@ -106,14 +125,12 @@ export const presensiPulang = async (req, res) => {
     const jamInput = JAM_KELUAR || new Date().toLocaleTimeString("it-IT");
     const fotoPath = req.file ? `/uploads/presensi/${req.file.filename}` : null;
 
-    // Pastikan data absen masuk ada
     const existing = await PresensiModel.getTodayPresensi(KARYAWAN_ID, tglPresensi);
     if (!existing) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ status: "error", message: "Data absen masuk tidak ditemukan!" });
     }
 
-    // Cegah double absen pulang
     if (existing.JAM_KELUAR) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ status: "error", message: "Sudah melakukan absen pulang!" });
@@ -160,7 +177,6 @@ export const remove = async (req, res) => {
 
     await PresensiModel.deletePresensi(id);
 
-    // Hapus file foto jika ada
     [data.FOTO_MASUK, data.FOTO_KELUAR].forEach((foto) => {
       if (foto) {
         const filePath = path.join(process.cwd(), "public", foto);

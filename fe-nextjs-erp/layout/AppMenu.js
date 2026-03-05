@@ -38,7 +38,8 @@ if (userRole === "SUPERADMIN") {
                 { label: "Data Karyawan", icon: "pi pi-fw pi-user", to: "/master/karyawan" },
                 { label: "Presensi Karyawan", icon: "pi pi-fw pi-calendar-plus", to: "/master/presensi-karyawan" }, // Menu baru Anda
                 { label: "Validasi Logbook", icon: "pi pi-fw pi-check-square", to: "/master/validasi-logbook" },
-                { label: "Master Pengajuan", icon: "pi pi-fw pi-file-export", to: "/master/master_pengajuan" }
+                { label: "Master Pengajuan", icon: "pi pi-fw pi-file-export", to: "/master/master_pengajuan" },
+                { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/master/rekapitulasi-kinerja" }
             ]
         },
         {
@@ -191,7 +192,8 @@ if (userRole === "SUPERADMIN") {
                             { label: "Rencana Produksi", icon: "pi pi-fw pi-list", to: "/produksi/rencana" },
                             { label: "Jadwal Produksi", icon: "pi pi-fw pi-calendar", to: "/produksi/jadwal" },
                             { label: "Kapasitas Produksi", icon: "pi pi-fw pi-chart-bar", to: "/produksi/kapasitas" },
-                            { Label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/produksi/menu/logbook-pekerjaan" }
+                            { Label: "Logbook Pekerjaan", icon: "pi pi-fw pi-file-edit", to: "/produksi/menu/logbook-pekerjaan" },
+                            { label: "Rekapitulasi Kinerja", icon: "pi pi-fw pi-chart-bar", to: "/master/rekapitulasi-kinerja" }
                         ]
                     },
                     {
