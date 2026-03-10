@@ -4,7 +4,7 @@ import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
-import { Calendar } from "primereact/calendar";
+import { Dropdown } from "primereact/dropdown";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Tag } from "primereact/tag";
 import { Skeleton } from "primereact/skeleton";
@@ -34,6 +34,23 @@ const getStatusSeverity = (status) => {
   return "danger";
 };
 
+// Generate daftar 12 bulan terakhir + bulan depan untuk dropdown
+const generateBulanOptions = () => {
+  const now = new Date();
+  const options = [];
+  // dari 11 bulan lalu sampai bulan ini (12 total)
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push({
+      label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      year: d.getFullYear(),
+      month: d.getMonth(), // 0-indexed
+    });
+  }
+  return options;
+};
+
 export default function PresensiKaryawanPage() {
   const router    = useRouter();
   const toastRef  = useRef(null);
@@ -52,22 +69,21 @@ export default function PresensiKaryawanPage() {
   const [fileName,         setFileName]         = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  // ─── Date filter ────────────────────────────────────────────
+  // ─── Bulan dropdown ─────────────────────────────────────────
+  const bulanOptions = generateBulanOptions();
+
+  // Default: bulan berjalan
   const now = new Date();
-  const [startDate, setStartDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
-  const [endDate,   setEndDate]   = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const defaultBulan = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedBulan, setSelectedBulan] = useState(defaultBulan);
 
-  const startDateRef = useRef(startDate);
-  const endDateRef   = useRef(endDate);
-  useEffect(() => { startDateRef.current = startDate; }, [startDate]);
-  useEffect(() => { endDateRef.current   = endDate;   }, [endDate]);
-
-  const shortcutOptions = [
-    { label: "Bulan Ini",  getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth(), 1),     e: new Date(n.getFullYear(), n.getMonth() + 1, 0) }; } },
-    { label: "Bulan Lalu", getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth() - 1, 1), e: new Date(n.getFullYear(), n.getMonth(), 0) }; } },
-    { label: "3 Bulan",    getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), n.getMonth() - 2, 1), e: new Date(n.getFullYear(), n.getMonth() + 1, 0) }; } },
-    { label: "Tahun Ini",  getRange: () => { const n = new Date(); return { s: new Date(n.getFullYear(), 0, 1),                e: new Date(n.getFullYear(), 11, 31) }; } },
-  ];
+  // Hitung startDate & endDate dari selectedBulan
+  const getDateRange = (bulanValue) => {
+    const [year, month] = bulanValue.split("-").map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end   = new Date(year, month, 0); // hari terakhir bulan
+    return { start, end };
+  };
 
   // ─── Stats ─────────────────────────────────────────────────
   const stats = {
@@ -106,12 +122,21 @@ export default function PresensiKaryawanPage() {
     return () => { isMounted.current = false; };
   }, [router]);
 
+  // ─── Fetch saat token pertama kali tersedia (pakai bulan default) ──
   useEffect(() => {
     if (token) {
-      doFetch(startDate, endDate, token);
+      const { start, end } = getDateRange(selectedBulan);
+      doFetch(start, end, token);
       fetchKaryawanList(token);
     }
   }, [token]);
+
+  // ─── Fetch ulang setiap kali dropdown bulan berubah ──────
+  useEffect(() => {
+    if (!token) return;
+    const { start, end } = getDateRange(selectedBulan);
+    doFetch(start, end, token);
+  }, [selectedBulan]);
 
   // ─── Fetch rekap (protected) ─────────────────────────────
   const doFetch = async (sd, ed, t = token) => {
@@ -137,13 +162,7 @@ export default function PresensiKaryawanPage() {
     }
   };
 
-  const applyShortcut = (sd, ed) => {
-    setStartDate(sd);
-    setEndDate(ed);
-    doFetch(sd, ed, token);
-  };
-
-  // ─── Fetch list karyawan (publik, tidak perlu token) ─────
+  // ─── Fetch list karyawan ──────────────────────────────────
   const fetchKaryawanList = async () => {
     try {
       const res = await axios.get(`${API_URL}/master-presensi/list-karyawan`);
@@ -170,7 +189,7 @@ export default function PresensiKaryawanPage() {
     );
   };
 
-  // ─── Save masuk (publik) ──────────────────────────────────
+  // ─── Save masuk ───────────────────────────────────────────
   const handleSaveMasuk = async (formData) => {
     setIsLoading(true);
     try {
@@ -180,7 +199,8 @@ export default function PresensiKaryawanPage() {
       if (res.data.status === "success") {
         toastRef.current?.showToast("00", "Presensi masuk berhasil dicatat");
         setModals((p) => ({ ...p, masuk: false }));
-        doFetch(startDateRef.current, endDateRef.current, token);
+        const { start, end } = getDateRange(selectedBulan);
+        doFetch(start, end, token);
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal simpan");
       }
@@ -189,7 +209,7 @@ export default function PresensiKaryawanPage() {
     } finally { setIsLoading(false); }
   };
 
-  // ─── Save pulang (publik) ─────────────────────────────────
+  // ─── Save pulang ──────────────────────────────────────────
   const handleSavePulang = async (formData) => {
     setIsLoading(true);
     try {
@@ -199,7 +219,8 @@ export default function PresensiKaryawanPage() {
       if (res.data.status === "success") {
         toastRef.current?.showToast("00", "Presensi pulang berhasil dicatat");
         setModals((p) => ({ ...p, pulang: false }));
-        doFetch(startDateRef.current, endDateRef.current, token);
+        const { start, end } = getDateRange(selectedBulan);
+        doFetch(start, end, token);
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal simpan");
       }
@@ -208,7 +229,7 @@ export default function PresensiKaryawanPage() {
     } finally { setIsLoading(false); }
   };
 
-  // ─── Delete (protected) ───────────────────────────────────
+  // ─── Delete ───────────────────────────────────────────────
   const handleDelete = (rowData) => {
     confirmDialog({
       message: `Hapus data presensi "${rowData.NAMA_KARYAWAN}" tanggal ${new Date(rowData.TANGGAL).toLocaleDateString("id-ID")}?`,
@@ -224,7 +245,8 @@ export default function PresensiKaryawanPage() {
           });
           if (res.data.status === "success") {
             toastRef.current?.showToast("00", "Data berhasil dihapus");
-            doFetch(startDateRef.current, endDateRef.current, token);
+            const { start, end } = getDateRange(selectedBulan);
+            doFetch(start, end, token);
           } else {
             toastRef.current?.showToast("01", res.data.message || "Gagal menghapus");
           }
@@ -242,7 +264,7 @@ export default function PresensiKaryawanPage() {
   const openModal  = (key, row) => { if (row !== undefined) setSelectedData(row); setModals((p) => ({ ...p, [key]: true })); };
   const closeModal = (key) => setModals((p) => ({ ...p, [key]: false }));
 
-  // ─── Columns ────────────────────────────────────────────────
+  // ─── Columns ─────────────────────────────────────────────
   const columns = [
     {
       field: "KARYAWAN_ID", header: "ID Karyawan", sortable: true,
@@ -316,7 +338,11 @@ export default function PresensiKaryawanPage() {
     },
   ];
 
-  // ─── Render ─────────────────────────────────────────────────
+  // ─── Label bulan aktif untuk badge ───────────────────────
+  const activeBulanLabel = bulanOptions.find((b) => b.value === selectedBulan)?.label || "";
+  const { start: activeStart, end: activeEnd } = getDateRange(selectedBulan);
+
+  // ─── Render ──────────────────────────────────────────────
   return (
     <div className="card p-0">
       <ToastNotifier ref={toastRef} />
@@ -334,30 +360,54 @@ export default function PresensiKaryawanPage() {
               Kelola data kehadiran, jam masuk, jam pulang, dan rekap harian karyawan secara terpusat.
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {shortcutOptions.map((opt) => (
-              <Button key={opt.label} label={opt.label} size="small"
-                className="p-button-outlined p-button-secondary"
-                onClick={() => { const r = opt.getRange(); applyShortcut(r.s, r.e); }} />
-            ))}
-          </div>
         </div>
 
+        {/* ── Filter Bulan + Aksi ── */}
         <div className="flex align-items-end justify-content-between gap-3 mt-4 flex-wrap">
           <div className="flex align-items-end gap-3 flex-wrap">
+
+            {/* Dropdown pilih bulan */}
             <div>
-              <label className="block text-sm font-medium text-700 mb-2">Dari Tanggal</label>
-              <Calendar value={startDate} onChange={(e) => setStartDate(e.value)}
-                dateFormat="dd/mm/yy" showIcon className="w-12rem" />
+              <label className="block text-sm font-medium text-700 mb-2">
+                <i className="pi pi-calendar mr-1" />
+                Pilih Bulan
+              </label>
+              <Dropdown
+                value={selectedBulan}
+                options={bulanOptions}
+                onChange={(e) => setSelectedBulan(e.value)}
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Pilih bulan..."
+                className="w-15rem"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-700 mb-2">Sampai Tanggal</label>
-              <Calendar value={endDate} onChange={(e) => setEndDate(e.value)}
-                dateFormat="dd/mm/yy" showIcon className="w-12rem" />
+
+            {/* Badge rentang tanggal aktif */}
+            <div className="flex align-items-center gap-2 pb-1">
+              <Tag
+                value={`${activeStart.toLocaleDateString("id-ID", { day: "2-digit", month: "short" })} — ${activeEnd.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}`}
+                severity="info"
+                icon="pi pi-calendar"
+                rounded
+              />
+              <Button
+                icon="pi pi-refresh"
+                size="small"
+                severity="secondary"
+                outlined
+                loading={isLoading}
+                tooltip="Refresh Data"
+                tooltipOptions={{ position: "top" }}
+                onClick={() => {
+                  const { start, end } = getDateRange(selectedBulan);
+                  doFetch(start, end, token);
+                }}
+              />
             </div>
-            <Button label="Tampilkan" icon="pi pi-search" loading={isLoading}
-              onClick={() => doFetch(startDate, endDate, token)} />
           </div>
+
+          {/* Tombol Aksi */}
           <div className="flex align-items-end gap-2 flex-wrap">
             <Button icon="pi pi-print" label="Cetak Laporan" severity="secondary" outlined
               onClick={() => openModal("print")} />
@@ -426,7 +476,7 @@ export default function PresensiKaryawanPage() {
               </div>
 
               <div className="col-12 md:col-4">
-                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl"></span><span>Kehadiran Tertinggi</span></div>} className="shadow-2 h-full">
+                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl">🏆</span><span>Kehadiran Tertinggi</span></div>} className="shadow-2 h-full">
                   {topHadir.length === 0 ? (
                     <p className="text-500 text-center py-4">Tidak ada data</p>
                   ) : topHadir.map((item, idx) => (
@@ -448,7 +498,7 @@ export default function PresensiKaryawanPage() {
               </div>
 
               <div className="col-12 md:col-4">
-                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl"></span><span>Sering Terlambat</span></div>} className="shadow-2 h-full">
+                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl">⚠️</span><span>Sering Terlambat</span></div>} className="shadow-2 h-full">
                   {topTerlambat.length === 0 ? (
                     <div className="text-center py-4">
                       <i className="pi pi-check-circle text-3xl text-green-400 mb-2 block" />
@@ -498,6 +548,7 @@ export default function PresensiKaryawanPage() {
                   <i className="pi pi-table text-primary" />
                   <span className="font-semibold text-700">Data Presensi</span>
                   <Tag value={`${dataList.length} data`} severity="info" rounded />
+                  <Tag value={activeBulanLabel} severity="secondary" rounded icon="pi pi-calendar" />
                 </div>
               </div>
               <HeaderBar

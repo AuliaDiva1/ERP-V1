@@ -4,6 +4,20 @@ import fs from "fs";
 import path from "path";
 
 /* ===========================================================
+ * HELPER — ambil default bulan berjalan
+ * =========================================================== */
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const year  = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+  return {
+    start: `${year}-${month}-01`,
+    end:   `${year}-${month}-${lastDay}`,
+  };
+};
+
+/* ===========================================================
  * 0. LIST KARYAWAN
  * =========================================================== */
 export const getListKaryawan = async (req, res) => {
@@ -75,7 +89,7 @@ export const presensiMasuk = async (req, res) => {
   const fotoPath = req.file ? `/uploads/presensi/${req.file.filename}` : null;
 
   try {
-    const today = TANGGAL || new Date().toISOString().split("T")[0];
+    const today    = TANGGAL   || new Date().toISOString().split("T")[0];
     const jamInput = JAM_MASUK || new Date().toLocaleTimeString("it-IT");
 
     const existing = await PresensiModel.getTodayPresensi(KARYAWAN_ID, today);
@@ -91,13 +105,12 @@ export const presensiMasuk = async (req, res) => {
     const payload = {
       KODE_PRESENSI: `PRS-${today.replace(/-/g, "")}-${idSuffix}`,
       KARYAWAN_ID,
-      TANGGAL: today,
-      JAM_MASUK: jamInput,
-      LOKASI_MASUK:
-        LATITUDE && LONGITUDE ? `${LATITUDE}, ${LONGITUDE}` : "Input Admin",
-      FOTO_MASUK: fotoPath,
-      STATUS: STATUS || "Hadir",
-      KETERANGAN: KETERANGAN || "Input oleh Admin",
+      TANGGAL:      today,
+      JAM_MASUK:    jamInput,
+      LOKASI_MASUK: LATITUDE && LONGITUDE ? `${LATITUDE}, ${LONGITUDE}` : "Input Admin",
+      FOTO_MASUK:   fotoPath,
+      STATUS:       STATUS    || "Hadir",
+      KETERANGAN:   KETERANGAN || "Input oleh Admin",
     };
 
     const result = await PresensiModel.checkIn(payload);
@@ -121,9 +134,9 @@ export const presensiPulang = async (req, res) => {
   }
 
   try {
-    const tglPresensi = TANGGAL || new Date().toISOString().split("T")[0];
-    const jamInput = JAM_KELUAR || new Date().toLocaleTimeString("it-IT");
-    const fotoPath = req.file ? `/uploads/presensi/${req.file.filename}` : null;
+    const tglPresensi = TANGGAL    || new Date().toISOString().split("T")[0];
+    const jamInput    = JAM_KELUAR || new Date().toLocaleTimeString("it-IT");
+    const fotoPath    = req.file   ? `/uploads/presensi/${req.file.filename}` : null;
 
     const existing = await PresensiModel.getTodayPresensi(KARYAWAN_ID, tglPresensi);
     if (!existing) {
@@ -137,10 +150,9 @@ export const presensiPulang = async (req, res) => {
     }
 
     const dataUpdate = {
-      JAM_KELUAR: jamInput,
-      LOKASI_KELUAR:
-        LATITUDE && LONGITUDE ? `${LATITUDE}, ${LONGITUDE}` : "Input Admin",
-      FOTO_KELUAR: fotoPath,
+      JAM_KELUAR:    jamInput,
+      LOKASI_KELUAR: LATITUDE && LONGITUDE ? `${LATITUDE}, ${LONGITUDE}` : "Input Admin",
+      FOTO_KELUAR:   fotoPath,
     };
 
     const result = await PresensiModel.checkOut(KARYAWAN_ID, tglPresensi, dataUpdate);
@@ -153,11 +165,40 @@ export const presensiPulang = async (req, res) => {
 };
 
 /* ===========================================================
- * 4. GET REKAP (Admin View)
+ * 4. GET REKAP (Admin View) — filter wajib by bulan/tanggal
  * =========================================================== */
 export const getRekap = async (req, res) => {
   try {
-    const data = await PresensiModel.getAllPresensi(req.query);
+    const { start_date, end_date } = req.query;
+
+    // Jika tidak ada filter tanggal → default bulan berjalan
+    const { start: defaultStart, end: defaultEnd } = getDefaultDateRange();
+    const sd = start_date || defaultStart;
+    const ed = end_date   || defaultEnd;
+
+    // Validasi format tanggal
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(sd) || !dateRegex.test(ed)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Format tanggal tidak valid. Gunakan format YYYY-MM-DD",
+      });
+    }
+
+    // Pastikan start <= end
+    if (new Date(sd) > new Date(ed)) {
+      return res.status(400).json({
+        status: "error",
+        message: "start_date tidak boleh lebih besar dari end_date",
+      });
+    }
+
+    const data = await PresensiModel.getAllPresensi({
+      ...req.query,
+      start_date: sd,
+      end_date:   ed,
+    });
+
     return res.json({ status: "success", data });
   } catch (error) {
     console.error("getRekap error:", error);

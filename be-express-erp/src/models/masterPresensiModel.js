@@ -45,19 +45,18 @@ export const checkIn = async (payload) => {
   }
 
   const finalData = {
-    KODE_PRESENSI:
-      payload.KODE_PRESENSI || `PRS-${Date.now()}`,
-    KARYAWAN_ID: payload.KARYAWAN_ID,
-    TANGGAL: payload.TANGGAL,
-    JAM_MASUK: payload.JAM_MASUK,
-    LOKASI_MASUK: payload.LOKASI_MASUK || "Input Admin",
-    FOTO_MASUK: payload.FOTO_MASUK || null,
-    STATUS: payload.STATUS || "Hadir",
-    KETERANGAN: payload.KETERANGAN || "Input via Admin",
-    IS_TERLAMBAT: isTerlambat,
+    KODE_PRESENSI: payload.KODE_PRESENSI || `PRS-${Date.now()}`,
+    KARYAWAN_ID:   payload.KARYAWAN_ID,
+    TANGGAL:       payload.TANGGAL,
+    JAM_MASUK:     payload.JAM_MASUK,
+    LOKASI_MASUK:  payload.LOKASI_MASUK || "Input Admin",
+    FOTO_MASUK:    payload.FOTO_MASUK   || null,
+    STATUS:        payload.STATUS       || "Hadir",
+    KETERANGAN:    payload.KETERANGAN   || "Input via Admin",
+    IS_TERLAMBAT:  isTerlambat,
     IS_PULANG_AWAL: 0,
-    created_at: db.fn.now(),
-    updated_at: db.fn.now(),
+    created_at:    db.fn.now(),
+    updated_at:    db.fn.now(),
   };
 
   const [newId] = await db("master_presensi").insert(finalData);
@@ -76,18 +75,23 @@ export const checkOut = async (karyawanId, tanggal, data) => {
   await db("master_presensi")
     .where({ KARYAWAN_ID: karyawanId, TANGGAL: tanggal })
     .update({
-      JAM_KELUAR: data.JAM_KELUAR,
+      JAM_KELUAR:    data.JAM_KELUAR,
       LOKASI_KELUAR: data.LOKASI_KELUAR || "Input Admin",
-      FOTO_KELUAR: data.FOTO_KELUAR || null,
+      FOTO_KELUAR:   data.FOTO_KELUAR   || null,
       IS_PULANG_AWAL: isPulangAwal,
-      updated_at: db.fn.now(),
+      updated_at:    db.fn.now(),
     });
 
   return getTodayPresensi(karyawanId, tanggal);
 };
 
-/* --- 6. GET REKAP (dengan filter opsional) --- */
-export const getAllPresensi = async ({ startDate, endDate, karyawanId } = {}) => {
+/* --- 6. GET REKAP (dengan filter tanggal) --- */
+export const getAllPresensi = async (params = {}) => {
+  // ✅ FIX: support snake_case (dari controller) maupun camelCase
+  const startDate = params.start_date || params.startDate || null;
+  const endDate   = params.end_date   || params.endDate   || null;
+  const karyawanId = params.karyawan_id || params.karyawanId || null;
+
   const query = db("master_presensi as p")
     .leftJoin("master_karyawan as k", "p.KARYAWAN_ID", "k.KARYAWAN_ID")
     .select(
@@ -97,8 +101,14 @@ export const getAllPresensi = async ({ startDate, endDate, karyawanId } = {}) =>
       "k.DEPARTEMEN"
     );
 
-  if (startDate && endDate) query.whereBetween("p.TANGGAL", [startDate, endDate]);
-  if (karyawanId) query.where("p.KARYAWAN_ID", karyawanId);
+  // ✅ Filter tanggal — sekarang pasti terbaca
+  if (startDate && endDate) {
+    query.whereBetween("p.TANGGAL", [startDate, endDate]);
+  }
+
+  if (karyawanId) {
+    query.where("p.KARYAWAN_ID", karyawanId);
+  }
 
   return query
     .orderBy("p.TANGGAL", "desc")
