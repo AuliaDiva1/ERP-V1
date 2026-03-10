@@ -71,7 +71,7 @@ export default function AdjustPrintPresensiKaryawan({
       const end   = config.dateRange[1].toLocaleDateString("en-CA");
 
       const res = await axios.get(`${API_URL}/master-presensi/rekap`, {
-        params: { startDate: start, endDate: end },
+        params: { start_date: start, end_date: end },
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.data?.data || [];
