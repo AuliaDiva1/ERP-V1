@@ -12,9 +12,8 @@ import { Badge } from "primereact/badge";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const API_BASE   = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api").replace(/\/+$/g, "");
-const ASSET_BASE = API_BASE.replace(/\/api$/i, "");
-const COMPANY    = process.env.NEXT_PUBLIC_COMPANY_NAME || "PT. Perusahaan Indonesia";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 const DetailPresensiKaryawan = ({ visible, onHide, data }) => {
   const [karyawan, setKaryawan] = useState(null);
