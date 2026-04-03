@@ -49,13 +49,9 @@ const app = express();
 // ── Static Files
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// ── CORS
-const allowedOrigins = ["http://localhost:3000"];
+// ── CORS (DIUBAH AGAR MENERIMA AKSES VERCEL)
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error("Not allowed by CORS"));
-  },
+  origin: "*", // Mengizinkan semua domain (termasuk frontend Vercel kamu)
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "X-Timestamp", "X-Signature"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -66,6 +62,7 @@ app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Index Route
 app.get("/", [setResponseHeader], (req, res) => {
   return res.status(200).json(`Welcome to the server! ${new Date().toLocaleString()}`);
 });
@@ -87,12 +84,12 @@ app.use("/api/master-pengajuan",  masterPengajuanRoutes);
 app.use("/api/master-customer",   masterCustomerRoutes);
 
 // SDM
-app.use("/api/master-batch",          batchRoutes);
-app.use("/api/batch-karyawan",        batchKaryawanRoutes);
-app.use("/api/logbook-pekerjaan",     logbookRoutes);
-app.use("/api/rekapitulasi-kinerja",  rekapitulasiKinerjaRoutes);
+app.use("/api/master-batch",           batchRoutes);
+app.use("/api/batch-karyawan",         batchKaryawanRoutes);
+app.use("/api/logbook-pekerjaan",      logbookRoutes);
+app.use("/api/rekapitulasi-kinerja",   rekapitulasiKinerjaRoutes);
 app.use("/api/master-presensi",       masterPresensiRoutes);
-app.use("/api/master-shift",          masterShiftRoutes);
+app.use("/api/master-shift",           masterShiftRoutes);
 
 // PAYROLL
 app.use("/api/master-gaji-jabatan",   masterGajiJabatanRoutes);
