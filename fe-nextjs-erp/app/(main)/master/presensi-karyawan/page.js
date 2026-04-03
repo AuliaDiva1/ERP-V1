@@ -34,18 +34,17 @@ const getStatusSeverity = (status) => {
   return "danger";
 };
 
-// Generate daftar 12 bulan terakhir + bulan depan untuk dropdown
+// Generate daftar 12 bulan terakhir untuk dropdown
 const generateBulanOptions = () => {
   const now = new Date();
   const options = [];
-  // dari 11 bulan lalu sampai bulan ini (12 total)
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     options.push({
       label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
       value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      year: d.getFullYear(),
-      month: d.getMonth(), // 0-indexed
+      year:  d.getFullYear(),
+      month: d.getMonth(),
     });
   }
   return options;
@@ -60,6 +59,7 @@ export default function PresensiKaryawanPage() {
   const [dataList,        setDataList]        = useState([]);
   const [originalData,    setOriginalData]    = useState([]);
   const [isLoading,       setIsLoading]       = useState(false);
+  const [isAlpaLoading,   setIsAlpaLoading]   = useState(false);
   const [selectedData,    setSelectedData]    = useState(null);
   const [karyawanOptions, setKaryawanOptions] = useState([]);
   const [modals, setModals] = useState({
@@ -72,16 +72,14 @@ export default function PresensiKaryawanPage() {
   // ─── Bulan dropdown ─────────────────────────────────────────
   const bulanOptions = generateBulanOptions();
 
-  // Default: bulan berjalan
   const now = new Date();
   const defaultBulan = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedBulan, setSelectedBulan] = useState(defaultBulan);
 
-  // Hitung startDate & endDate dari selectedBulan
   const getDateRange = (bulanValue) => {
     const [year, month] = bulanValue.split("-").map(Number);
     const start = new Date(year, month - 1, 1);
-    const end   = new Date(year, month, 0); // hari terakhir bulan
+    const end   = new Date(year, month, 0);
     return { start, end };
   };
 
@@ -122,7 +120,7 @@ export default function PresensiKaryawanPage() {
     return () => { isMounted.current = false; };
   }, [router]);
 
-  // ─── Fetch saat token pertama kali tersedia (pakai bulan default) ──
+  // ─── Fetch saat token pertama kali tersedia ───────────────
   useEffect(() => {
     if (token) {
       const { start, end } = getDateRange(selectedBulan);
@@ -138,7 +136,7 @@ export default function PresensiKaryawanPage() {
     doFetch(start, end, token);
   }, [selectedBulan]);
 
-  // ─── Fetch rekap (protected) ─────────────────────────────
+  // ─── Fetch rekap ─────────────────────────────────────────
   const doFetch = async (sd, ed, t = token) => {
     setIsLoading(true);
     try {
@@ -261,6 +259,51 @@ export default function PresensiKaryawanPage() {
     });
   };
 
+  // ─── Trigger Auto Alpa (manual) ──────────────────────────
+  const handleAutoAlpa = () => {
+    const todayLabel = new Date().toLocaleDateString("id-ID", {
+      weekday: "long", day: "2-digit", month: "long", year: "numeric",
+    });
+    confirmDialog({
+      message: `Jalankan Auto-Alpa untuk hari ini (${todayLabel})?\n\nSistem akan menandai semua karyawan yang belum absen dan sudah melewati jam pulang shift mereka sebagai ALPA.`,
+      header: "Konfirmasi Auto-Alpa",
+      icon: "pi pi-exclamation-triangle",
+      acceptLabel: "Ya, Jalankan",
+      rejectLabel: "Batal",
+      acceptClassName: "p-button-warning",
+      accept: async () => {
+        setIsAlpaLoading(true);
+        try {
+          const res = await axios.post(
+            `${API_URL}/master-presensi/auto-alpa`,
+            {}, // body kosong = default hari ini
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (res.data.status === "success") {
+            const { marked, skipped, errors } = res.data.data;
+            const detail =
+              `Ditandai Alpa: ${marked.length} karyawan` +
+              (errors.length > 0 ? ` | Error: ${errors.length}` : "");
+            toastRef.current?.showToast("00", `Auto-Alpa selesai — ${detail}`);
+            // Refresh tabel agar data Alpa baru langsung muncul
+            const { start, end } = getDateRange(selectedBulan);
+            doFetch(start, end, token);
+          } else {
+            toastRef.current?.showToast("01", res.data.message || "Auto-Alpa gagal");
+          }
+        } catch (err) {
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            toastRef.current?.showToast("01", "Tidak punya izin menjalankan Auto-Alpa");
+          } else {
+            toastRef.current?.showToast("01", err.response?.data?.message || "Gagal menjalankan Auto-Alpa");
+          }
+        } finally {
+          setIsAlpaLoading(false);
+        }
+      },
+    });
+  };
+
   const openModal  = (key, row) => { if (row !== undefined) setSelectedData(row); setModals((p) => ({ ...p, [key]: true })); };
   const closeModal = (key) => setModals((p) => ({ ...p, [key]: false }));
 
@@ -322,7 +365,7 @@ export default function PresensiKaryawanPage() {
       header: "Aksi", style: { width: "120px" },
       body: (r) => (
         <div className="flex gap-1">
-          {!r.JAM_KELUAR && (
+          {!r.JAM_KELUAR && r.STATUS === "Hadir" && (
             <Button icon="pi pi-sign-out" size="small" severity="warning"
               tooltip="Absen Pulang" tooltipOptions={{ position: "top" }}
               onClick={() => openModal("pulang", r)} />
@@ -338,7 +381,6 @@ export default function PresensiKaryawanPage() {
     },
   ];
 
-  // ─── Label bulan aktif untuk badge ───────────────────────
   const activeBulanLabel = bulanOptions.find((b) => b.value === selectedBulan)?.label || "";
   const { start: activeStart, end: activeEnd } = getDateRange(selectedBulan);
 
@@ -409,10 +451,30 @@ export default function PresensiKaryawanPage() {
 
           {/* Tombol Aksi */}
           <div className="flex align-items-end gap-2 flex-wrap">
-            <Button icon="pi pi-print" label="Cetak Laporan" severity="secondary" outlined
-              onClick={() => openModal("print")} />
-            <Button icon="pi pi-plus" label="Catat Absen Masuk"
-              onClick={() => openModal("masuk", null)} />
+            {/* Tombol Auto-Alpa — khusus admin */}
+            <Button
+              icon={isAlpaLoading ? "pi pi-spin pi-spinner" : "pi pi-user-minus"}
+              label="Auto Alpa"
+              severity="warning"
+              outlined
+              loading={isAlpaLoading}
+              tooltip="Tandai karyawan yang tidak hadir hari ini sebagai Alpa"
+              tooltipOptions={{ position: "top" }}
+              onClick={handleAutoAlpa}
+              disabled={isAlpaLoading}
+            />
+            <Button
+              icon="pi pi-print"
+              label="Cetak Laporan"
+              severity="secondary"
+              outlined
+              onClick={() => openModal("print")}
+            />
+            <Button
+              icon="pi pi-plus"
+              label="Catat Absen Masuk"
+              onClick={() => openModal("masuk", null)}
+            />
           </div>
         </div>
       </div>
@@ -466,9 +528,12 @@ export default function PresensiKaryawanPage() {
                           <span className="text-600 text-sm">{item.label}</span>
                           <span className="font-bold" style={{ color: item.color }}>{item.value}</span>
                         </div>
-                        <ProgressBar value={stats.total ? Math.round((item.value / stats.total) * 100) : 0}
-                          showValue={false} style={{ height: 8, borderRadius: 4 }}
-                          pt={{ value: { style: { background: item.color, borderRadius: 4 } } }} />
+                        <ProgressBar
+                          value={stats.total ? Math.round((item.value / stats.total) * 100) : 0}
+                          showValue={false}
+                          style={{ height: 8, borderRadius: 4 }}
+                          pt={{ value: { style: { background: item.color, borderRadius: 4 } } }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -476,7 +541,10 @@ export default function PresensiKaryawanPage() {
               </div>
 
               <div className="col-12 md:col-4">
-                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl">🏆</span><span>Kehadiran Tertinggi</span></div>} className="shadow-2 h-full">
+                <Card
+                  title={<div className="flex align-items-center gap-2"><span className="text-xl">🏆</span><span>Kehadiran Tertinggi</span></div>}
+                  className="shadow-2 h-full"
+                >
                   {topHadir.length === 0 ? (
                     <p className="text-500 text-center py-4">Tidak ada data</p>
                   ) : topHadir.map((item, idx) => (
@@ -498,7 +566,10 @@ export default function PresensiKaryawanPage() {
               </div>
 
               <div className="col-12 md:col-4">
-                <Card title={<div className="flex align-items-center gap-2"><span className="text-xl">⚠️</span><span>Sering Terlambat</span></div>} className="shadow-2 h-full">
+                <Card
+                  title={<div className="flex align-items-center gap-2"><span className="text-xl">⚠️</span><span>Sering Terlambat</span></div>}
+                  className="shadow-2 h-full"
+                >
                   {topTerlambat.length === 0 ? (
                     <div className="text-center py-4">
                       <i className="pi pi-check-circle text-3xl text-green-400 mb-2 block" />

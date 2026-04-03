@@ -253,3 +253,36 @@ export const remove = async (req, res) => {
     return res.status(500).json({ status: "error", message: "Gagal menghapus data" });
   }
 };
+
+/* ============================================================
+ * 6. TRIGGER AUTO MARK ALPA
+ *
+ *  Dipanggil oleh scheduler internal (presensiScheduler.js)
+ *  ATAU secara manual via route admin:
+ *    POST /api/master-presensi/auto-alpa
+ *    Body: { tanggal: "YYYY-MM-DD" }   ← opsional, default hari ini
+ *
+ *  Route ini sebaiknya dilindungi middleware auth + role admin.
+ * ============================================================ */
+export const triggerAutoAlpa = async (req, res) => {
+  try {
+    const tanggal = req.body?.tanggal || null; // opsional, default hari ini
+    const result  = await PresensiModel.autoMarkAlpa(tanggal);
+
+    console.log(
+      `[autoMarkAlpa] Tanggal: ${tanggal || "hari ini"} | ` +
+      `Ditandai: ${result.marked.length} | ` +
+      `Dilewati: ${result.skipped.length} | ` +
+      `Error: ${result.errors.length}`
+    );
+
+    return res.json({
+      status:  "success",
+      message: `Auto Alpa selesai. ${result.marked.length} karyawan ditandai Alpa.`,
+      data:    result,
+    });
+  } catch (error) {
+    console.error("triggerAutoAlpa error:", error);
+    return res.status(500).json({ status: "error", message: "Gagal menjalankan auto mark alpa." });
+  }
+};

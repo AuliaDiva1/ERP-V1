@@ -20,7 +20,7 @@ router.get("/karyawan-info", PresensiController.getKaryawanInfo);
 router.get("/status", PresensiController.cekStatusHarian);
 
 // GET /api/master-presensi/setting
-// Mengembalikan: LAT_KANTOR, LON_KANTOR, RADIUS_METER
+// Mengembalikan: LAT_KANTOR, LON_KANTOR, RADIUS_METER, JAM_MASUK_NORMAL, JAM_PULANG_NORMAL
 // Public agar kios absen mandiri bisa akses
 router.get("/setting", PresensiController.getSettingPresensi);
 
@@ -48,6 +48,16 @@ router.get(
   verifyToken,
   checkRole(["SUPERADMIN", "HR"]),
   PresensiController.getRekap
+);
+
+// POST /api/master-presensi/auto-alpa
+// Body (opsional): { "tanggal": "YYYY-MM-DD" }
+// Jika tanggal tidak dikirim → default hari ini
+router.post(
+  "/auto-alpa",
+  verifyToken,
+  checkRole(["SUPERADMIN", "HR"]),
+  PresensiController.triggerAutoAlpa
 );
 
 // DELETE /api/master-presensi/:id

@@ -288,3 +288,135 @@ export const getAllPresensi = async (params = {}) => {
 export const deletePresensi = async (id) => {
   return db("master_presensi").where("ID", id).del();
 };
+
+/* ============================================================
+ * 8. AUTO MARK ALPA
+ *
+ *  Dipanggil oleh scheduler (cron) setelah jam pulang.
+ *  Alur:
+ *  1. Ambil semua karyawan aktif yang punya shift
+ *  2. Untuk setiap karyawan, cek apakah hari ini adalah hari
+ *     kerja mereka (berdasarkan HARI_KERJA shift)
+ *  3. Ambil jam pulang shift (atau fallback perusahaan)
+ *  4. Jika jam sekarang sudah melewati jam pulang shift
+ *     DAN karyawan belum ada data presensi hari ini
+ *     → insert record Alpa otomatis
+ *  5. Return ringkasan: { marked, skipped, errors }
+ * ============================================================ */
+export const autoMarkAlpa = async (tanggal) => {
+  const today = tanggal || new Date().toISOString().split("T")[0];
+
+  // Nama hari dalam bahasa Indonesia sesuai data HARI_KERJA
+  const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const hariIni   = NAMA_HARI[new Date(today + "T00:00:00").getDay()];
+
+  const [setting, semuaKaryawan] = await Promise.all([
+    getSettingPerusahaan(),
+    db("master_karyawan as k")
+      .leftJoin("master_shift as s", "k.SHIFT", "s.NAMA_SHIFT")
+      .select(
+        "k.KARYAWAN_ID",
+        "k.NAMA",
+        "k.SHIFT",
+        "s.JAM_MASUK   as SHIFT_JAM_MASUK",
+        "s.JAM_KELUAR  as SHIFT_JAM_KELUAR",
+        "s.HARI_KERJA  as SHIFT_HARI_KERJA",
+        "s.STATUS      as SHIFT_STATUS"
+      )
+      .where("k.STATUS_AKTIF", "Aktif"),
+  ]);
+
+  const jamSekarang   = new Date().toLocaleTimeString("it-IT"); // HH:MM:SS
+  const menitSekarang = toMenit(jamSekarang);
+
+  const result = { marked: [], skipped: [], errors: [] };
+
+  for (const karyawan of semuaKaryawan) {
+    try {
+      // ── A. Tentukan jam pulang berlaku ───────────────────────
+      // Prioritas: shift aktif karyawan → fallback perusahaan
+      const shiftAktif   = karyawan.SHIFT_STATUS === "Aktif";
+      const jamPulangShift =
+        (shiftAktif && karyawan.SHIFT_JAM_KELUAR) || setting?.JAM_PULANG_NORMAL || null;
+
+      if (!jamPulangShift) {
+        result.skipped.push({
+          KARYAWAN_ID: karyawan.KARYAWAN_ID,
+          NAMA:        karyawan.NAMA,
+          alasan:      "Tidak ada jam pulang shift/perusahaan",
+        });
+        continue;
+      }
+
+      // ── B. Cek apakah hari ini adalah hari kerja shift ──────
+      // Jika shift terdefinisi, pakai HARI_KERJA shift; jika tidak, anggap setiap hari kerja
+      if (karyawan.SHIFT_HARI_KERJA) {
+        const hariKerjaList = karyawan.SHIFT_HARI_KERJA
+          .split(",")
+          .map((h) => h.trim());
+        if (!hariKerjaList.includes(hariIni)) {
+          result.skipped.push({
+            KARYAWAN_ID: karyawan.KARYAWAN_ID,
+            NAMA:        karyawan.NAMA,
+            alasan:      `Bukan hari kerja (${hariIni})`,
+          });
+          continue;
+        }
+      }
+
+      // ── C. Cek apakah jam pulang shift sudah terlewati ──────
+      const menitPulang = toMenit(jamPulangShift);
+      if (menitSekarang === null || menitPulang === null || menitSekarang < menitPulang) {
+        result.skipped.push({
+          KARYAWAN_ID: karyawan.KARYAWAN_ID,
+          NAMA:        karyawan.NAMA,
+          alasan:      `Jam pulang belum lewat (acuan: ${jamPulangShift})`,
+        });
+        continue;
+      }
+
+      // ── D. Cek apakah sudah ada data presensi hari ini ──────
+      const existing = await getTodayPresensi(karyawan.KARYAWAN_ID, today);
+      if (existing) {
+        result.skipped.push({
+          KARYAWAN_ID: karyawan.KARYAWAN_ID,
+          NAMA:        karyawan.NAMA,
+          alasan:      `Sudah ada presensi (STATUS: ${existing.STATUS})`,
+        });
+        continue;
+      }
+
+      // ── E. Insert record ALPA ─────────────────────────────────
+      const idSuffix = karyawan.KARYAWAN_ID.split("-")[1] || Math.floor(Math.random() * 9999);
+      await db("master_presensi").insert({
+        KODE_PRESENSI:  `PRS-${today.replace(/-/g, "")}-${idSuffix}-ALPA`,
+        KARYAWAN_ID:    karyawan.KARYAWAN_ID,
+        TANGGAL:        today,
+        JAM_MASUK:      null,
+        JAM_KELUAR:     null,
+        LOKASI_MASUK:   null,
+        LOKASI_KELUAR:  null,
+        FOTO_MASUK:     null,
+        FOTO_KELUAR:    null,
+        STATUS:         "Alpa",
+        KETERANGAN:     "Ditandai otomatis oleh sistem — tidak hadir tanpa keterangan",
+        SHIFT_SNAPSHOT: karyawan.SHIFT || null,
+        IS_TERLAMBAT:   0,
+        IS_PULANG_AWAL: 0,
+        created_at:     db.fn.now(),
+        updated_at:     db.fn.now(),
+      });
+
+      result.marked.push({
+        KARYAWAN_ID: karyawan.KARYAWAN_ID,
+        NAMA:        karyawan.NAMA,
+      });
+
+    } catch (err) {
+      console.error(`autoMarkAlpa error — ${karyawan.KARYAWAN_ID}:`, err.message);
+      result.errors.push({ KARYAWAN_ID: karyawan.KARYAWAN_ID, error: err.message });
+    }
+  }
+
+  return result;
+};
