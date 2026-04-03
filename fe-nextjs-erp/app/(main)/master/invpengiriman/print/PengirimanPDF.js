@@ -21,52 +21,57 @@ const formatTime = (date) => {
 };
 
 /**
- * CORE PDF GENERATOR: SURAT JALAN (PREMIUM EDITION)
- * Berfokus pada estetika, akurasi data master_customer, dan master_perusahaan.
+ * CORE PDF GENERATOR: SURAT JALAN
+ * 
+ * @param {object} header     - Data pengiriman + info customer lengkap dari master_customer
+ *                              (NAMA_CUSTOMER, ALAMAT, NO_TELP, EMAIL dari lookup di page.js)
+ * @param {array}  details    - Item barang pengiriman
+ * @param {object} perusahaan - Data dari master_perusahaan (dinamis, tidak hardcode)
  */
 export const generateSuratJalan = (header, details, perusahaan) => {
+    // ── Nama perusahaan dinamis, fallback generik (bukan nama spesifik) ──
+    const namaPerusahaan = perusahaan?.NAMA_PERUSAHAAN || "PERUSAHAAN BELUM DIATUR";
+
     // 1. Inisialisasi Dokumen Dasar
     const doc = new jsPDF({
         orientation: "p",
         unit: "mm",
         format: "a4",
         putOnlyUsedFonts: true,
-        floatPrecision: 16 
+        floatPrecision: 16
     });
 
-    // Properti Metadata
+    // Properti Metadata — gunakan nama perusahaan dari master_perusahaan
     doc.setProperties({
         title: `SJ-${header.NO_PENGIRIMAN}`,
         subject: 'Surat Jalan Logistik',
-        author: perusahaan?.NAMA_PERUSAHAAN || 'Sistem Logistik',
+        author: namaPerusahaan,
         keywords: 'surat jalan, pengiriman, logistik',
-        creator: 'Gemini ERP System'
     });
 
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const mL = 15; // Margin Kiri
-    const mR = 15; // Margin Kanan
+    const mL = 15;
+    const mR = 15;
     let currentY = 15;
 
     /**
      * FUNGSI INTERNAL: HEADER DEKORATIF
-     * Muncul di setiap halaman jika diperlukan
      */
     const drawHeaderBackground = () => {
-        // Background Abu-abu Muda di bagian atas
         doc.setFillColor(245, 247, 250);
         doc.rect(0, 0, pageWidth, 48, 'F');
-        
-        // Garis aksen biru tipis di paling atas
         doc.setFillColor(41, 128, 185);
         doc.rect(0, 0, pageWidth, 2, 'F');
     };
 
     /**
-     * FUNGSI INTERNAL: WATERMARK
+     * FUNGSI INTERNAL: WATERMARK — dinamis dari master_perusahaan
+     * Jika perusahaan belum diatur, watermark menampilkan teks generik
      */
-    const drawWatermark = (text = "ORIGINAL DOCUMENT") => {
+    const drawWatermark = () => {
+        // Gunakan nama perusahaan dari master_perusahaan, bukan hardcode
+        const watermarkText = namaPerusahaan.toUpperCase();
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
@@ -75,7 +80,7 @@ export const generateSuratJalan = (header, details, perusahaan) => {
             doc.setFontSize(50);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(150);
-            doc.text(text, pageWidth / 2, pageHeight / 2, {
+            doc.text(watermarkText, pageWidth / 2, pageHeight / 2, {
                 align: 'center',
                 angle: 45
             });
@@ -88,8 +93,8 @@ export const generateSuratJalan = (header, details, perusahaan) => {
 
     /**
      * SECTION 1: PROFIL PERUSAHAAN (PENGIRIM)
+     * Semua data dari master_perusahaan — tidak ada yang hardcode
      */
-    // Rendering Logo
     if (perusahaan?.LOGO_PATH) {
         try {
             doc.addImage(perusahaan.LOGO_PATH, "PNG", mL, currentY, 28, 28, 'LOGO_MAIN', 'FAST');
@@ -97,31 +102,31 @@ export const generateSuratJalan = (header, details, perusahaan) => {
             doc.setDrawColor(200);
             doc.rect(mL, currentY, 28, 28, 'S');
             doc.setFontSize(8);
-            doc.text("MISSING LOGO", mL + 14, currentY + 14, { align: 'center' });
+            doc.text("LOGO", mL + 14, currentY + 14, { align: 'center' });
         }
     }
 
     const textStartX = perusahaan?.LOGO_PATH ? mL + 32 : mL;
 
-    // Nama PT
+    // Nama Perusahaan — dinamis dari master_perusahaan
     doc.setTextColor(41, 128, 185);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text(perusahaan?.NAMA_PERUSAHAAN?.toUpperCase() || "PT. LOGISTIK JAYA ABADI", textStartX, currentY + 6);
+    doc.text(namaPerusahaan.toUpperCase(), textStartX, currentY + 6);
 
-    // Alamat Kantor
+    // Alamat Kantor — dari master_perusahaan, fallback pesan netral
     doc.setTextColor(60, 60, 60);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    const companyAddr = perusahaan?.ALAMAT_KANTOR || "Alamat kantor pusat belum diatur dalam Master Perusahaan.";
+    const companyAddr = perusahaan?.ALAMAT_KANTOR || "Alamat kantor belum diatur di Master Perusahaan.";
     const splitAddr = doc.splitTextToSize(companyAddr, 90);
     doc.text(splitAddr, textStartX, currentY + 11);
 
-    // Kontak Line
+    // Kontak — dari master_perusahaan
     const contactLineY = currentY + 11 + (splitAddr.length * 4.5);
     doc.setFont("helvetica", "bold");
     doc.text(`Telp: ${perusahaan?.TELEPON || "-"} | WA: ${perusahaan?.WA_HOTLINE || "-"}`, textStartX, contactLineY);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.text(`Email: ${perusahaan?.EMAIL || "-"} | Web: ${perusahaan?.WEBSITE || "-"}`, textStartX, contactLineY + 4);
@@ -131,7 +136,7 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
     doc.text("SURAT JALAN", pageWidth - mR, currentY + 10, { align: "right" });
-    
+
     doc.setTextColor(120);
     doc.setFontSize(10);
     doc.setFont("helvetica", "italic");
@@ -145,18 +150,18 @@ export const generateSuratJalan = (header, details, perusahaan) => {
 
     /**
      * SECTION 2: INFORMASI TRANSAKSI & PENERIMA
+     * Data customer dari master_customer (dikirim via header dari page.js)
      */
     currentY += 10;
-    
-    // Desain Box untuk info
+
     const boxHeight = 45;
     const boxWidth = (pageWidth / 2) - 20;
 
-    // Box Kiri: Penerima (Data master_customer)
+    // Box Kiri: Penerima
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(220);
     doc.roundedRect(mL, currentY, boxWidth, boxHeight, 2, 2, 'FD');
-    
+
     // Box Kanan: Detail Dokumen
     doc.roundedRect(pageWidth / 2 + 5, currentY, boxWidth, boxHeight, 2, 2, 'FD');
 
@@ -168,21 +173,24 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.setFontSize(9);
     doc.text("TUJUAN PENGIRIMAN / PENERIMA", mL + 4, currentY + 5.5);
 
-    // Isi Box Kiri
+    // Isi Box Kiri — data dari master_customer (via header)
     doc.setTextColor(0);
     doc.setFontSize(11);
-    doc.text(header.NAMA_CUSTOMER || "PELANGGAN UMUM", mL + 4, currentY + 14);
-    
+    doc.setFont("helvetica", "bold");
+    doc.text(header.NAMA_CUSTOMER || "Pelanggan Umum", mL + 4, currentY + 14);
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    const custAddress = header.ALAMAT || header.ALAMAT_TUJUAN || "Alamat tidak ditemukan";
+    // ALAMAT dari master_customer (lookup di page.js), fallback ke ALAMAT_TUJUAN header
+    const custAddress = header.ALAMAT || header.ALAMAT_TUJUAN || "Alamat tidak tersedia";
     const splitCustAddr = doc.splitTextToSize(custAddress, boxWidth - 8);
     doc.text(splitCustAddr, mL + 4, currentY + 20);
 
-    // Info Kontak Customer
+    // Kontak customer dari master_customer
     const custContactY = currentY + 20 + (splitCustAddr.length * 4.5);
     doc.setFontSize(8.5);
     doc.setTextColor(80);
+    // NO_TELP dan EMAIL dari master_customer (dikirim via header di page.js)
     doc.text(`UP/Telp : ${header.NO_TELP || "-"}`, mL + 4, custContactY + 2);
     doc.text(`Email   : ${header.EMAIL || "-"}`, mL + 4, custContactY + 6);
 
@@ -190,6 +198,7 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.setFillColor(52, 73, 94);
     doc.rect(pageWidth / 2 + 5, currentY, boxWidth, 8, 'F');
     doc.setTextColor(255);
+    doc.setFont("helvetica", "bold");
     doc.text("INFORMASI PENGIRIMAN", pageWidth / 2 + 9, currentY + 5.5);
 
     // Isi Box Kanan
@@ -206,9 +215,10 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.setFont("helvetica", "normal");
     doc.text(`: ${header.NO_PENGIRIMAN}`, rightInfoX + 25, currentY + 14);
     doc.text(`: ${formatDate(header.TGL_KIRIM)}`, rightInfoX + 25, currentY + 20);
+    // Gudang dari master_perusahaan
     doc.text(`: ${perusahaan?.ALAMAT_GUDANG?.substring(0, 25) || "Gudang Utama"}`, rightInfoX + 25, currentY + 26);
     doc.text(`: ${header.NAMA_DRIVER || "-"}`, rightInfoX + 25, currentY + 32);
-    
+
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
     doc.text(`: ${header.STATUS_KIRIM || "Diproses"}`, rightInfoX + 25, currentY + 38);
@@ -229,18 +239,18 @@ export const generateSuratJalan = (header, details, perusahaan) => {
             { content: Number(item.QTY).toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold' } },
             item.KODE_SATUAN || "PCS"
         ]),
-        headStyles: { 
-            fillColor: [41, 128, 185], 
-            textColor: 255, 
-            fontSize: 10, 
-            fontStyle: 'bold', 
+        headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontSize: 10,
+            fontStyle: 'bold',
             halign: 'center',
-            cellPadding: 4 
+            cellPadding: 4
         },
-        bodyStyles: { 
-            fontSize: 9, 
+        bodyStyles: {
+            fontSize: 9,
             cellPadding: 3,
-            textColor: 40 
+            textColor: 40
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         margin: { left: mL, right: mR },
@@ -256,11 +266,11 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     });
 
     /**
-     * SECTION 4: AREA TANDA TANGAN (SIGNATURE SECTION)
+     * SECTION 4: AREA TANDA TANGAN
+     * Nama & jabatan pimpinan dari master_perusahaan
      */
     let finalY = doc.lastAutoTable.finalY + 12;
 
-    // Proteksi jika sisa halaman tidak cukup untuk tanda tangan
     if (finalY + 65 > pageHeight) {
         doc.addPage();
         drawHeaderBackground();
@@ -269,7 +279,6 @@ export const generateSuratJalan = (header, details, perusahaan) => {
 
     const colWidth = (pageWidth - mL - mR) / 3;
 
-    // Layout Tanda Tangan
     doc.setTextColor(0);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -287,17 +296,19 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.setFontSize(7.5);
     doc.text("Petugas Pengirim", mL + colWidth + (colWidth / 2), finalY + 32, { align: "center" });
 
-    // Pimpinan / Admin
+    // Pimpinan — kota & jabatan dari master_perusahaan
     doc.setFontSize(9);
     const kotaTgl = `${perusahaan?.KOTA_TERBIT || "Indonesia"}, ${formatDate(new Date())}`;
     doc.text(kotaTgl, mL + (colWidth * 2) + (colWidth / 2), finalY - 5, { align: "center" });
+    // Jabatan pimpinan dari master_perusahaan
     doc.text(perusahaan?.JABATAN_PIMPINAN || "Hormat Kami,", mL + (colWidth * 2) + (colWidth / 2), finalY, { align: "center" });
-    
+
     doc.setFont("helvetica", "bold");
-    doc.text(`( ${perusahaan?.NAMA_PIMPINAN || "Admin Logistik"} )`, mL + (colWidth * 2) + (colWidth / 2), finalY + 28, { align: "center" });
+    // Nama pimpinan dari master_perusahaan
+    doc.text(`( ${perusahaan?.NAMA_PIMPINAN || "-"} )`, mL + (colWidth * 2) + (colWidth / 2), finalY + 28, { align: "center" });
 
     /**
-     * SECTION 5: FOOTER NOTES & SECURITY
+     * SECTION 5: FOOTER NOTES & LOG
      */
     const notesY = finalY + 45;
     doc.setDrawColor(230);
@@ -310,17 +321,17 @@ export const generateSuratJalan = (header, details, perusahaan) => {
     doc.text("1. Barang yang sudah diterima tidak dapat ditukar/dikembalikan tanpa perjanjian sebelumnya.", mL, notesY + 9);
     doc.text("2. Surat jalan ini merupakan bukti sah serah terima barang antara pengirim dan penerima.", mL, notesY + 13);
 
-    // Digital Stamp / Log
+    // Digital Log — nama perusahaan dinamis
     const bottomY = pageHeight - 10;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(180);
-    const digitalLog = `System Log: ${header.NO_PENGIRIMAN} | Generated by ERP | ${formatDate(new Date())} ${formatTime(new Date())}`;
+    const digitalLog = `System Log: ${header.NO_PENGIRIMAN} | ${namaPerusahaan} | ${formatDate(new Date())} ${formatTime(new Date())}`;
     doc.text(digitalLog, mL, bottomY);
     doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - mR, bottomY, { align: "right" });
 
-    // Terapkan Watermark di akhir
-    drawWatermark("PT. LOGISTIK JAYA ABADI");
+    // Watermark — nama perusahaan dari master_perusahaan (dinamis)
+    drawWatermark();
 
     return doc;
 };
