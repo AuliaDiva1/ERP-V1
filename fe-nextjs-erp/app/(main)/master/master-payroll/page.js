@@ -24,7 +24,7 @@ import GeneratePayrollDialog from "./components/GeneratePayrollDialog";
 import AdjustPrintSlipGaji from "./print/AdjustPrintSlipGaji";
 import PDFViewer from "./print/PDFViewer";
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api").replace(/\/+$/g, "");
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const DEPT_COLOR = {
   PRODUKSI: "#3b82f6", GUDANG: "#22c55e",

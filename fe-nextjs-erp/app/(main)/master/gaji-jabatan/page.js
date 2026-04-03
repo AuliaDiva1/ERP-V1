@@ -16,7 +16,7 @@ import FormGajiJabatan from "./components/FormGajiJabatan";
 import AdjustPrintGajiJabatan from "./print/AdjustPrintGajiJabatan";
 import PDFViewer from "./print/PDFViewer";
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api").replace(/\/+$/g, "");
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const DEPT_COLOR = {
   PRODUKSI:   "#3b82f6",

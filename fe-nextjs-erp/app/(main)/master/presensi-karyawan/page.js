@@ -19,7 +19,7 @@ import FormPresensiPulang from "./components/FormPresensiPulang";
 import DetailPresensiKaryawan from "./components/DetailPresensiKaryawan";
 import AdjustPrintPresensiKaryawan from "./print/AdjustPrintPresensiKaryawan";
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api").replace(/\/+$/g, "");
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const toYMD = (d) => {
   if (!d) return "";
