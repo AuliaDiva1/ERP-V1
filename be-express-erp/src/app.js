@@ -22,6 +22,7 @@ import batchKaryawanRoutes from "./routes/batchKaryawanRoutes.js";
 import logbookRoutes from "./routes/logbookPekerjaanRoutes.js";
 import rekapitulasiKinerjaRoutes from "./routes/rekapitulasiKinerjaRoutes.js";
 import masterPresensiRoutes from "./routes/masterPresensiRoutes.js";
+import masterShiftRoutes from "./routes/masterShiftRoutes.js";
 
 // ── PAYROLL (baru)
 import masterGajiJabatanRoutes from "./routes/masterGajiJabatanRoutes.js";
@@ -91,6 +92,7 @@ app.use("/api/batch-karyawan",        batchKaryawanRoutes);
 app.use("/api/logbook-pekerjaan",     logbookRoutes);
 app.use("/api/rekapitulasi-kinerja",  rekapitulasiKinerjaRoutes);
 app.use("/api/master-presensi",       masterPresensiRoutes);
+app.use("/api/master-shift",          masterShiftRoutes);
 
 // PAYROLL
 app.use("/api/master-gaji-jabatan",   masterGajiJabatanRoutes);
